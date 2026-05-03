@@ -2,6 +2,8 @@
 
 A thin wrapper around [podlet](https://github.com/containers/podlet) that acts as a drop-in replacement for `docker-compose` / `podman-compose`. It uses podlet to generate systemd quadlet service files from a `compose.yaml` and manages them via `systemctl`.
 
+**Disclaimer** - This is currently only a **PROOF OF CONCEPT**. It has not been used in production and I do not recommend doing so.
+
 ## Requirements
 
 - [podlet](https://github.com/containers/podlet) — generates quadlet files from compose configs
