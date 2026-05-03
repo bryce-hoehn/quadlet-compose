@@ -28,6 +28,10 @@
 
           src = ./.;
 
+          nativeBuildInputs = with pkgs.python312Packages; [
+            setuptools
+          ];
+
           propagatedBuildInputs = pythonDeps;
 
           # Runtime dependencies needed on PATH
