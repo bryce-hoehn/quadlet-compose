@@ -1,18 +1,18 @@
-"""compose_restart - Restart all services defined in the compose file."""
+"""compose_restart - Stop and restart services (down + up)."""
 
-from utils import resolve_compose_path, parse_compose, get_service_targets, run_cmd
+from compose_cmds.down import compose_down
+from compose_cmds.up import compose_up
 
 
-def compose_restart(compose_file: str | None = None, **_kwargs) -> None:
-    """Restart all systemd services defined in the compose file."""
-    compose_path = resolve_compose_path(compose_file)
-    compose_data = parse_compose(compose_path)
+def compose_restart(
+    compose_file: str | None = None,
+    kube: bool = False,
+    detach: bool = False,
+    **_kwargs,
+) -> None:
+    """Restart services by running down then up.
 
-    if not compose_data["service_names"]:
-        print("No services defined in compose file.")
-        return
-
-    targets = get_service_targets(compose_data)
-    print(f"Restarting {', '.join(targets)} ...")
-    run_cmd(["systemctl", "--user", "restart", *targets])
-    print("Done.")
+    Regenerates quadlet files and restarts all containers.
+    """
+    compose_down(compose_file=compose_file)
+    compose_up(compose_file=compose_file, kube=kube, detach=detach)
