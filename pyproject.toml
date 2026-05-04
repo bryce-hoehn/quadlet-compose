@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "pytest-timeout"]
 
 [project.scripts]
 podlet-compose = "podlet_compose:main"
