@@ -2,8 +2,8 @@
 
 import itertools
 import threading
+import time
 
-from rich.console import Group
 from rich.live import Live
 from rich.text import Text
 
@@ -31,7 +31,6 @@ def run_with_progress(
     label_fn:
         Optional callable ``(target: str) -> (kind, name)`` for display.
         *kind* is e.g. ``"Pod"`` or ``"Container"``, *name* is the display name.
-        Defaults to ``(kind, target)`` where kind is inferred from the target.
     """
     if not targets:
         return
@@ -43,20 +42,24 @@ def run_with_progress(
 
     _label = label_fn or _default_label
 
-    results: dict[str, str] = {}  # target -> "ok" | "error"
+    # results: target -> ("ok" | "error", elapsed_seconds)
+    results: dict[str, tuple[str, float]] = {}
     lock = threading.Lock()
     error_details: list[str] = []
     spinner_cycle = itertools.cycle(_SPINNERS)
 
     def worker():
         for target in targets:
+            t0 = time.monotonic()
             try:
                 action_fn(target)
+                elapsed = time.monotonic() - t0
                 with lock:
-                    results[target] = "ok"
+                    results[target] = ("ok", elapsed)
             except ComposeError as exc:
+                elapsed = time.monotonic() - t0
                 with lock:
-                    results[target] = "error"
+                    results[target] = ("error", elapsed)
                     error_details.append(str(exc))
 
     thread = threading.Thread(target=worker, daemon=True)
@@ -77,18 +80,29 @@ def run_with_progress(
         raise ComposeError("\n".join(error_details))
 
 
-def _build_frame(targets, results, spinner, action_label, label_fn) -> Group:
-    """Build one frame of the progress display."""
+def _build_frame(targets, results, spinner, action_label, label_fn) -> Text:
+    """Build one frame of the progress display as a single styled Text."""
     total = len(targets)
     completed = len(results)
-    lines: list[Text] = [Text(f"[+] {action_label} {completed}/{total}")]
+    frame = Text()
+    frame.append(f"[+] {action_label} {completed}/{total}\n")
+
     for target in targets:
         kind, name = label_fn(target)
         if target in results:
-            if results[target] == "ok":
-                lines.append(Text(f" ✔ {kind} {name} {action_label}", style="green"))
+            status, elapsed = results[target]
+            t = f"{elapsed:.1f}s"
+            if status == "ok":
+                frame.append(" ✔ ", style="green")
+                frame.append(f"{kind} {name} ")
+                frame.append(f"{action_label}", style="green")
+                frame.append(f" {t}\n")
             else:
-                lines.append(Text(f" ✗ {kind} {name} Error", style="red"))
+                frame.append(" ✗ ", style="red")
+                frame.append(f"{kind} {name} ")
+                frame.append("Error", style="red")
+                frame.append(f" {t}\n")
         else:
-            lines.append(Text(f" {spinner} {kind} {name}"))
-    return Group(*lines)
+            frame.append(f" {spinner} {kind} {name}\n")
+
+    return frame

@@ -88,10 +88,10 @@ def compose_up(
     _ensure_bind_mount_dirs(compose_data, compose_path.parent.resolve())
 
     # Generate quadlet files (suppress podlet's stdout)
-    run_cmd(cmd)
+    run_cmd(cmd, quiet=True)
 
     # Reload systemd to pick up new unit files
-    run_cmd(["systemctl", "--user", "daemon-reload"])
+    run_cmd(["systemctl", "--user", "daemon-reload"], quiet=True)
 
     # Determine targets
     if kube:
@@ -112,6 +112,7 @@ def compose_up(
 
     if not detach:
         # Follow container logs via podman (Ctrl+C to stop)
+        # Container names in pod mode are the service names
         if kube:
             container_names = [project]
         else:
