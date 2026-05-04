@@ -41,7 +41,7 @@ jobs:
           mkdir -p ~/.config/systemd/user
 
       - name: Verify podman and quadlet
-        run: nix develop -c bash -c "podman --version && quadlet --version"
+        run: nix develop -c bash -c "podman --version && podman quadlet list"
 
       - name: Run integration tests
         run: nix develop -c pytest -v -m integration --timeout=120
