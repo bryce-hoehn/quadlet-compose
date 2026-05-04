@@ -7,6 +7,7 @@ from pathlib import Path
 from rich.console import Console
 
 from utils import (
+    ComposeError,
     get_unit_directory,
     resolve_compose_path,
     prepare_compose,
@@ -112,13 +113,34 @@ def compose_up(
 
     if not detach:
         # Follow container logs via podman (Ctrl+C to stop)
-        # Container names in pod mode are the service names
+        # Use podman ps to discover actual container names in the pod
         if kube:
             container_names = [project]
         else:
-            container_names = list(compose_data["service_names"])
-        podman_args = ["podman", "logs", "-f"] + container_names
-        try:
-            subprocess.run(podman_args)
-        except KeyboardInterrupt:
-            _console.print("\nDetached from logs. Services are still running.")
+            try:
+                ps_result = run_cmd(
+                    [
+                        "podman",
+                        "ps",
+                        "--filter",
+                        f"pod={project}",
+                        "--format",
+                        "{{.Names}}",
+                    ],
+                    quiet=True,
+                )
+                # Filter out the infra container
+                container_names = [
+                    n
+                    for n in (ps_result.stdout or "").splitlines()
+                    if n and "-infra" not in n
+                ]
+            except ComposeError:
+                container_names = list(compose_data["service_names"])
+
+        if container_names:
+            podman_args = ["podman", "logs", "-f"] + container_names
+            try:
+                subprocess.run(podman_args)
+            except KeyboardInterrupt:
+                _console.print("\nDetached from logs. Services are still running.")
