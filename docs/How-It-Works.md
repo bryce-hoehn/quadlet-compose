@@ -1,6 +1,6 @@
 # How It Works
 
-1. **`up`** interpolates variables from `.env` and environment, injects a `name` field if missing, then runs `podlet --unit-directory --overwrite --absolute-host-paths compose --pod` to generate quadlet files. It reloads systemd, starts the pod, and follows logs by default (`-d` to detach). With `--kube`, it generates a `.kube` file instead.
+1. **`up`** interpolates variables from `.env` and environment, injects a `name` field if missing, then runs `podlet --unit-directory --overwrite --skip-services-check --install --wanted-by default.target --absolute-host-paths compose --pod` to generate quadlet files. It reloads systemd, enables autostart for services with restart policies, starts the pod (containers start automatically via Quadlet's `StartWithPod=true`), and follows logs by default (`-d` to detach). With `--kube`, it generates a `.kube` file instead.
 2. **`down`** calls `systemctl --user stop` for the pod/kube service. With `--remove-files`, it also cleans up the generated quadlet files.
 3. **`restart`** runs `down` then `up` — stops services, regenerates quadlet files, and starts everything fresh.
 4. **`ps`** calls `systemctl --user status` on the pod/kube service or individual services.
@@ -46,7 +46,9 @@ Before passing the compose file to `podlet`, podlet-compose applies several tran
 |---|---|
 | Strip image tag when digest is present | Podlet rejects `image:repo:tag@sha256:digest` |
 | Strip `hostname` and `network_mode` | Incompatible with shared pod namespaces |
-| Flatten long-form `depends_on` with conditions | Podlet cannot translate `condition:` to systemd |
+| Fix unsupported `depends_on` conditions | Podlet errors on `condition: service_healthy` / `service_completed_successfully`; preserves `required` and `restart` flags |
+| Strip `configs` and non-external `secrets` | Podlet does not support `configs` and only supports external secrets |
 | Auto-expand single-value devices/ports/volumes | Podlet expects `host:container` format |
 | Remove `x-*` extension keys | Podlet does not support compose extensions |
-| Build images for `build:` services | Podlet cannot build images |
+
+> **Note:** `build:` is now handled natively by podlet v0.3.1+ which generates `.build` Quadlet files. No pre-build step is needed.

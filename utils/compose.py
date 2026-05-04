@@ -71,9 +71,16 @@ def _normalize_service_fields(data: dict) -> None:
       (``image:foo:v1@sha256:abc`` → ``image:foo@sha256:abc``).
     - Strip ``hostname`` and ``network_mode``
       (incompatible with shared pod UTS/network namespaces).
-    - Flatten long-form ``depends_on`` with conditions to short-form list
-      (podlet cannot translate ``condition: service_healthy`` to systemd).
+    - Fix ``depends_on`` entries with unsupported conditions
+      (``service_healthy``, ``service_completed_successfully``) and
+      ``restart: true`` without ``required: true``.  Preserves
+      ``required`` and ``restart`` flags that podlet translates to
+      systemd ``Requires=`` / ``BindsTo=``.
+    - Strip ``configs`` (not supported by podlet).
+    - Strip non-external ``secrets`` (only external secrets supported).
     """
+    _UNSUPPORTED_CONDITIONS = {"service_healthy", "service_completed_successfully"}
+
     for _name, svc in _iter_services(data):
         # Strip image tag when digest is present
         image = svc.get("image")
@@ -87,10 +94,43 @@ def _normalize_service_fields(data: dict) -> None:
         for key in ("hostname", "network_mode"):
             svc.pop(key, None)
 
-        # Flatten depends_on
+        # Fix depends_on — only strip what podlet can't handle
         dep = svc.get("depends_on")
         if isinstance(dep, dict):
-            svc["depends_on"] = list(dep.keys())
+            cleaned = {}
+            all_reduced = True
+            for dep_name, dep_config in dep.items():
+                if not isinstance(dep_config, dict):
+                    cleaned[dep_name] = dep_config
+                    continue
+                # Strip unsupported conditions (defaults to service_started)
+                if dep_config.get("condition") in _UNSUPPORTED_CONDITIONS:
+                    dep_config.pop("condition", None)
+                # restart=true without required=true is unsupported by podlet
+                if dep_config.get("restart") and not dep_config.get("required"):
+                    dep_config.pop("restart", None)
+                if dep_config:
+                    cleaned[dep_name] = dep_config
+                    all_reduced = False
+                else:
+                    cleaned[dep_name] = None
+            # If all entries were reduced to None, use short form
+            if all_reduced:
+                svc["depends_on"] = list(cleaned.keys())
+            else:
+                svc["depends_on"] = cleaned
+
+        # Strip configs (not supported by podlet)
+        svc.pop("configs", None)
+
+        # Strip non-external secrets
+        secrets = svc.get("secrets")
+        if isinstance(secrets, list):
+            external = [s for s in secrets if isinstance(s, dict) and s.get("external")]
+            if external:
+                svc["secrets"] = external
+            else:
+                svc.pop("secrets", None)
 
 
 def _expand_single_values(data: dict) -> None:
@@ -135,50 +175,6 @@ def _strip_extensions(data: dict) -> None:
         del data[k]
 
 
-def _build_services(data: dict, compose_dir: Path) -> None:
-    """Build images for services with ``build:`` and replace with ``image:``.
-
-    Podlet does not support ``build:`` in compose files.  This function
-    runs ``podman build`` for each service that defines a build context,
-    then replaces ``build:`` with the resulting ``image:`` tag so podlet
-    can process the service as a normal image-based container.
-    """
-    from .utils import run_cmd
-
-    for svc_name, svc in _iter_services(data):
-        build = svc.get("build")
-        if not build:
-            continue
-
-        # Resolve build context
-        if isinstance(build, str):
-            context = build
-            dockerfile = None
-            tags = None
-        elif isinstance(build, dict):
-            context = build.get("context", ".")
-            dockerfile = build.get("dockerfile")
-            tags = build.get("tags")
-        else:
-            continue
-
-        # Determine image tag
-        tag = tags[0] if tags else f"{svc_name}:latest"
-
-        # Build the image
-        cmd = ["podman", "build", "-t", tag]
-        if dockerfile:
-            cmd += ["-f", str(compose_dir / dockerfile)]
-        cmd.append(str(compose_dir / context))
-
-        print(f"Building image for '{svc_name}' ...")
-        run_cmd(cmd)
-
-        # Replace build: with image: in the compose data
-        del svc["build"]
-        svc["image"] = tag
-
-
 # ---------------------------------------------------------------------------
 
 
@@ -210,11 +206,14 @@ def prepare_compose(compose_path: Path) -> Path:
        environment — unresolved vars become empty strings.
     2. Normalize service fields — strip image tags with digests,
        remove pod-incompatible fields (``hostname``, ``network_mode``),
-       flatten long-form ``depends_on`` with conditions.
+       fix unsupported ``depends_on`` conditions, strip ``configs``
+       and non-external ``secrets``.
     3. Auto-expand single-value devices, ports, and path-like volumes.
     4. Remove ``x-*`` compose extension keys.
-    5. Build images for ``build:`` services and replace with ``image:``.
-    6. Inject ``name:`` from parent directory if missing.
+    5. Inject ``name:`` from parent directory if missing.
+
+    Note: ``build:`` is now handled natively by podlet v0.3.1+ which
+    generates ``.build`` Quadlet files.  No pre-build step is needed.
     """
     raw = compose_path.read_text(encoding="utf-8")
 
@@ -234,7 +233,6 @@ def prepare_compose(compose_path: Path) -> Path:
     _normalize_service_fields(data)
     _expand_single_values(data)
     _strip_extensions(data)
-    _build_services(data, compose_path.parent.resolve())
 
     # Inject name from parent directory if missing
     if "name" not in data:
