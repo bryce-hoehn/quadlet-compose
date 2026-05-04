@@ -34,18 +34,17 @@ def compose_down(
     print(f"Stopping {', '.join(targets)} ...")
     run_cmd(["systemctl", "--user", "stop", *targets])
 
-    # Also stop individual container services in pod/kube mode
-    if targets != service_names:
-        run_cmd(["systemctl", "--user", "stop", *service_names])
-
     if remove_files:
         # Remove quadlet files derived from the compose file
         files_to_remove = []
 
         for svc in service_names:
-            f = unit_dir / f"{svc}.container"
-            if f.exists():
-                files_to_remove.append(f)
+            # In pod/kube mode, files are named {project}-{service}.container
+            for pattern in (f"{project}-{svc}.container", f"{svc}.container"):
+                f = unit_dir / pattern
+                if f.exists():
+                    files_to_remove.append(f)
+                    break
 
         for vol in volume_names:
             f = unit_dir / f"{vol}.volume"
