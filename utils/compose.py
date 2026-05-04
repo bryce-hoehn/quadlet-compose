@@ -142,20 +142,53 @@ def _strip_extensions(data: dict) -> None:
         del data[k]
 
 
-def _inject_build_tags(data: dict) -> None:
-    """Inject a default image tag for services with ``build:`` but no ``image:``.
+def _build_services(data: dict, compose_dir: Path) -> None:
+    """Build images for services with ``build:`` and replace with ``image:``.
 
-    Podlet requires an image tag when converting ``build:`` to a quadlet
-    ``.build`` file.  This adds ``image: {service_name}:latest`` when missing.
+    Podlet does not support ``build:`` in compose files.  This function
+    runs ``podman build`` for each service that defines a build context,
+    then replaces ``build:`` with the resulting ``image:`` tag so podlet
+    can process the service as a normal image-based container.
     """
+    from .utils import run_cmd
+
     services = data.get("services")
     if not services:
         return
     for svc_name, svc in services.items():
         if not isinstance(svc, dict):
             continue
-        if "build" in svc and "image" not in svc:
-            svc["image"] = f"{svc_name}:latest"
+        build = svc.get("build")
+        if not build:
+            continue
+
+        # Resolve build context
+        if isinstance(build, str):
+            context = build
+            dockerfile = None
+            tags = None
+        elif isinstance(build, dict):
+            context = build.get("context", ".")
+            dockerfile = build.get("dockerfile")
+            tags = build.get("tags")
+        else:
+            continue
+
+        # Determine image tag
+        tag = tags[0] if tags else f"{svc_name}:latest"
+
+        # Build the image
+        cmd = ["podman", "build", "-t", tag]
+        if dockerfile:
+            cmd += ["-f", str(compose_dir / dockerfile)]
+        cmd.append(str(compose_dir / context))
+
+        print(f"Building image for '{svc_name}' ...")
+        run_cmd(cmd)
+
+        # Replace build: with image: in the compose data
+        del svc["build"]
+        svc["image"] = tag
 
 
 # ---------------------------------------------------------------------------
@@ -211,7 +244,7 @@ def prepare_compose(compose_path: Path) -> Path:
     _strip_image_tags_with_digests(data)
     _expand_single_values(data)
     _strip_extensions(data)
-    _inject_build_tags(data)
+    _build_services(data, compose_path.parent.resolve())
 
     # Inject name from parent directory if missing
     if "name" not in data:
