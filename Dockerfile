@@ -1,6 +1,10 @@
 # Use a base image with necessary build tools
 FROM python:3.11-slim AS builder
 
+# Accept host user/group IDs to set correct ownership on output
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
 # Install required packages for building
 RUN apt-get update && apt-get install -y \
     gcc \
@@ -26,5 +30,6 @@ RUN pyinstaller --onefile --clean podlet_compose.py
 # Create /result dir in case it is not mounted
 RUN mkdir -p /result
 
-# Export binary
-RUN cp /app/dist/podlet_compose /result/podlet-compose
+# Export binary with host user ownership
+RUN cp /app/dist/podlet_compose /result/podlet-compose \
+    && chown ${USER_ID}:${GROUP_ID} /result/podlet-compose

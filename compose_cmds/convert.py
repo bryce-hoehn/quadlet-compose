@@ -1,6 +1,6 @@
 """compose_convert - Preview quadlet files without installing."""
 
-from utils import resolve_compose_path, parse_compose, run_cmd
+from utils import resolve_compose_path, run_cmd
 
 
 def compose_convert(
@@ -12,14 +12,14 @@ def compose_convert(
     Uses the same defaults as up (--pod, --overwrite, --absolute-host-paths).
     """
     compose_path = resolve_compose_path(compose_file)
-    compose_data = parse_compose(compose_path)
 
-    # Build the same command as up, but without --unit-directory
+    # Build the same command as up, but without --unit-directory.
+    # options and must precede the "compose" subcommand.
     cmd = [
         "podlet",
-        "compose",
         "--overwrite",
         "--absolute-host-paths",
+        "compose",
     ]
     if kube:
         cmd.append("--kube")
