@@ -5,16 +5,16 @@ from pathlib import Path
 
 import pytest
 
+from hacks import _iter_services
+from hacks.normalize import normalize_service_fields
+from hacks.expand import expand_single_values
+from hacks.strip_extensions import strip_extensions
 from utils.compose import (
     parse_compose,
     resolve_compose_path,
     prepare_compose,
     get_image_services,
     get_build_services,
-    _normalize_service_fields,
-    _expand_single_values,
-    _strip_extensions,
-    _iter_services,
     COMPOSE_FILE_NAMES,
 )
 from utils.utils import ComposeError
@@ -171,29 +171,29 @@ class TestGetBuildServices:
 
 
 # ---------------------------------------------------------------------------
-# _normalize_service_fields
+# normalize_service_fields (hacks.normalize)
 # ---------------------------------------------------------------------------
 
 
 class TestNormalizeServiceFields:
     def test_strips_hostname(self):
         data = {"services": {"web": {"image": "nginx", "hostname": "myhost"}}}
-        _normalize_service_fields(data)
+        normalize_service_fields(data)
         assert "hostname" not in data["services"]["web"]
 
     def test_strips_network_mode(self):
         data = {"services": {"web": {"image": "nginx", "network_mode": "host"}}}
-        _normalize_service_fields(data)
+        normalize_service_fields(data)
         assert "network_mode" not in data["services"]["web"]
 
     def test_strips_image_tag_when_digest_present(self):
         data = {"services": {"web": {"image": "foo:v1@sha256:abc123"}}}
-        _normalize_service_fields(data)
+        normalize_service_fields(data)
         assert data["services"]["web"]["image"] == "foo@sha256:abc123"
 
     def test_keeps_image_tag_without_digest(self):
         data = {"services": {"web": {"image": "nginx:alpine"}}}
-        _normalize_service_fields(data)
+        normalize_service_fields(data)
         assert data["services"]["web"]["image"] == "nginx:alpine"
 
     def test_strips_unsupported_depends_on_conditions(self):
@@ -207,7 +207,7 @@ class TestNormalizeServiceFields:
                 },
             }
         }
-        _normalize_service_fields(data)
+        normalize_service_fields(data)
         # Should reduce to short form since all entries reduced to None
         assert data["services"]["web"]["depends_on"] == ["db"]
 
@@ -222,19 +222,19 @@ class TestNormalizeServiceFields:
                 },
             }
         }
-        _normalize_service_fields(data)
+        normalize_service_fields(data)
         dep = data["services"]["web"]["depends_on"]
         assert isinstance(dep, dict)
         assert dep["db"]["required"] is True
 
     def test_strips_configs(self):
         data = {"services": {"web": {"image": "nginx", "configs": ["myconfig"]}}}
-        _normalize_service_fields(data)
+        normalize_service_fields(data)
         assert "configs" not in data["services"]["web"]
 
     def test_strips_non_external_secrets(self):
         data = {"services": {"web": {"image": "nginx", "secrets": ["my_secret"]}}}
-        _normalize_service_fields(data)
+        normalize_service_fields(data)
         assert "secrets" not in data["services"]["web"]
 
     def test_keeps_external_secrets(self):
@@ -249,64 +249,64 @@ class TestNormalizeServiceFields:
                 }
             }
         }
-        _normalize_service_fields(data)
+        normalize_service_fields(data)
         secrets = data["services"]["web"]["secrets"]
         assert len(secrets) == 1
         assert secrets[0]["external"] is True
 
 
 # ---------------------------------------------------------------------------
-# _expand_single_values
+# expand_single_values (hacks.expand)
 # ---------------------------------------------------------------------------
 
 
 class TestExpandSingleValues:
     def test_expands_single_port(self):
         data = {"services": {"web": {"image": "nginx", "ports": ["8080"]}}}
-        _expand_single_values(data)
+        expand_single_values(data)
         assert data["services"]["web"]["ports"] == ["8080:8080"]
 
     def test_preserves_full_port(self):
         data = {"services": {"web": {"image": "nginx", "ports": ["8080:80"]}}}
-        _expand_single_values(data)
+        expand_single_values(data)
         assert data["services"]["web"]["ports"] == ["8080:80"]
 
     def test_expands_single_device(self):
         data = {"services": {"web": {"image": "nginx", "devices": ["/dev/dri"]}}}
-        _expand_single_values(data)
+        expand_single_values(data)
         assert data["services"]["web"]["devices"] == ["/dev/dri:/dev/dri"]
 
     def test_expands_path_like_volume(self):
         data = {"services": {"web": {"image": "nginx", "volumes": ["./data"]}}}
-        _expand_single_values(data)
+        expand_single_values(data)
         assert data["services"]["web"]["volumes"] == ["./data:./data"]
 
     def test_preserves_named_volume(self):
         data = {"services": {"web": {"image": "nginx", "volumes": ["data"]}}}
-        _expand_single_values(data)
+        expand_single_values(data)
         assert data["services"]["web"]["volumes"] == ["data"]
 
     def test_preserves_full_volume_mount(self):
         data = {"services": {"web": {"image": "nginx", "volumes": ["./data:/app"]}}}
-        _expand_single_values(data)
+        expand_single_values(data)
         assert data["services"]["web"]["volumes"] == ["./data:/app"]
 
 
 # ---------------------------------------------------------------------------
-# _strip_extensions
+# strip_extensions (hacks.strip_extensions)
 # ---------------------------------------------------------------------------
 
 
 class TestStripExtensions:
     def test_removes_x_prefix_keys(self):
         data = {"services": {}, "x-custom": {"foo": "bar"}, "x-env": "test"}
-        _strip_extensions(data)
+        strip_extensions(data)
         assert "x-custom" not in data
         assert "x-env" not in data
 
     def test_preserves_non_extension_keys(self):
         data = {"services": {}, "volumes": {}, "networks": {}}
-        _strip_extensions(data)
+        strip_extensions(data)
         assert "services" in data
         assert "volumes" in data
         assert "networks" in data
@@ -343,7 +343,27 @@ class TestIterServices:
 
 
 class TestPrepareCompose:
-    def test_injects_name_from_directory(self, tmp_path):
+    """Tests for prepare_compose with hacks disabled/enabled."""
+
+    def test_no_hacks_by_default(self, tmp_path, monkeypatch):
+        """When PODLET_COMPOSE_HACKS is unset, compose file passes through unchanged."""
+        monkeypatch.delenv("PODLET_COMPOSE_HACKS", raising=False)
+        compose_file = tmp_path / "compose.yaml"
+        compose_file.write_text(
+            "services:\n  web:\n    image: ${TEST_IMAGE}\nx-custom: foo\n"
+        )
+        result_path = prepare_compose(compose_file)
+        try:
+            content = result_path.read_text()
+            # No name injection, no interpolation, no extension stripping
+            assert "name:" not in content
+            assert "${TEST_IMAGE}" in content
+            assert "x-custom" in content
+        finally:
+            result_path.unlink(missing_ok=True)
+
+    def test_injects_name_when_enabled(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("PODLET_COMPOSE_HACKS", "name_inject")
         compose_file = tmp_path / "compose.yaml"
         compose_file.write_text("services:\n  web:\n    image: nginx\n")
         result_path = prepare_compose(compose_file)
@@ -353,7 +373,8 @@ class TestPrepareCompose:
         finally:
             result_path.unlink(missing_ok=True)
 
-    def test_interpolates_env_vars(self, tmp_path, monkeypatch):
+    def test_interpolates_env_vars_when_enabled(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("PODLET_COMPOSE_HACKS", "interpolate")
         monkeypatch.setenv("TEST_IMAGE", "nginx:alpine")
         compose_file = tmp_path / "compose.yaml"
         compose_file.write_text(
@@ -366,7 +387,9 @@ class TestPrepareCompose:
         finally:
             result_path.unlink(missing_ok=True)
 
-    def test_strips_extensions(self, tmp_path):
+    def test_strips_extensions_when_enabled(self, tmp_path, monkeypatch):
+        """x-* keys are removed when strip_extensions hack is enabled."""
+        monkeypatch.setenv("PODLET_COMPOSE_HACKS", "strip_extensions")
         compose_file = tmp_path / "compose.yaml"
         compose_file.write_text(
             "name: test\nservices:\n  web:\n    image: nginx\nx-custom: foo\n"
@@ -378,7 +401,8 @@ class TestPrepareCompose:
         finally:
             result_path.unlink(missing_ok=True)
 
-    def test_uses_dotenv_values(self, tmp_path, monkeypatch):
+    def test_uses_dotenv_values_when_enabled(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("PODLET_COMPOSE_HACKS", "interpolate")
         monkeypatch.delenv("MY_IMAGE", raising=False)
         (tmp_path / ".env").write_text("MY_IMAGE=redis:alpine\n")
         compose_file = tmp_path / "compose.yaml"
@@ -389,5 +413,25 @@ class TestPrepareCompose:
         try:
             content = result_path.read_text()
             assert "redis:alpine" in content
+        finally:
+            result_path.unlink(missing_ok=True)
+
+    def test_all_hacks_enabled(self, tmp_path, monkeypatch):
+        """PODLET_COMPOSE_HACKS=all enables every hack."""
+        monkeypatch.setenv("PODLET_COMPOSE_HACKS", "all")
+        monkeypatch.setenv("TEST_IMAGE", "nginx:alpine")
+        compose_file = tmp_path / "compose.yaml"
+        compose_file.write_text(
+            "services:\n  web:\n    image: ${TEST_IMAGE}\nx-custom: foo\n"
+        )
+        result_path = prepare_compose(compose_file)
+        try:
+            content = result_path.read_text()
+            # interpolate resolved the variable
+            assert "nginx:alpine" in content
+            # name_inject added the name
+            assert f"name: {tmp_path.name}" in content
+            # strip_extensions removed x-custom
+            assert "x-custom" not in content
         finally:
             result_path.unlink(missing_ok=True)

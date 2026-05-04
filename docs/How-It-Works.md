@@ -1,6 +1,6 @@
 # How It Works
 
-1. **`up`** interpolates variables from `.env` and environment, injects a `name` field if missing, then runs `podlet --unit-directory --overwrite --skip-services-check --install --wanted-by default.target --absolute-host-paths compose --pod` to generate quadlet files. It reloads systemd, enables autostart for services with restart policies, starts the pod (containers start automatically via Quadlet's `StartWithPod=true`), and follows logs by default (`-d` to detach). With `--kube`, it generates a `.kube` file instead.
+1. **`up`** runs `podlet --unit-directory --overwrite --skip-services-check --install --wanted-by default.target --absolute-host-paths compose --pod` to generate quadlet files from the compose file. It reloads systemd, enables autostart for services with restart policies, starts the pod (containers start automatically via Quadlet's `StartWithPod=true`), and follows logs by default (`-d` to detach). With `--kube`, it generates a `.kube` file instead.
 2. **`down`** calls `systemctl --user stop` for the pod/kube service. With `--remove-files`, it also cleans up the generated quadlet files.
 3. **`restart`** runs `down` then `up` — stops services, regenerates quadlet files, and starts everything fresh.
 4. **`ps`** calls `systemctl --user status` on the pod/kube service or individual services.
@@ -17,38 +17,26 @@
 podlet-compose **never modifies your source compose file**. All transformations are applied to a temporary copy:
 
 1. The original `compose.yaml` is read into memory
-2. Variables are interpolated in the raw text
+2. Enabled text-level hacks are applied (e.g. variable interpolation)
 3. The text is parsed with `ruamel.yaml`
-4. Workarounds and normalizations are applied to the in-memory data
+4. Enabled dict-level hacks are applied to the in-memory data
 5. The result is written to a **temporary file** (`tempfile.NamedTemporaryFile`)
 6. `podlet compose` processes the temp file instead of the original
 
 This ensures your source files remain untouched regardless of what transformations are needed.
 
-## Variable Interpolation
+## Hacks (Optional Workarounds)
 
-Before passing the compose file to `podlet`, podlet-compose resolves `$VAR` and `${VAR}` patterns using Python's `string.Template`. Variables are loaded from:
+All compose file transformations are **disabled by default** and controlled via the `PODLET_COMPOSE_HACKS` environment variable. See the [Hacks](Hacks) page for full details.
 
-1. A `.env` file in the same directory as the compose file
-2. Environment variables (take precedence over `.env`)
+Available hacks:
 
-Unresolved variables are replaced with empty strings. Use `$$` for a literal `$`.
-
-## Name Injection
-
-`podlet compose --pod` requires a top-level `name:` field in the compose file. If missing, podlet-compose automatically injects the parent directory name as the project name.
-
-## Automatic Workarounds
-
-Before passing the compose file to `podlet`, podlet-compose applies several transformations to handle known podlet limitations:
-
-| Transformation | Reason |
+| Hack | Description |
 |---|---|
-| Strip image tag when digest is present | Podlet rejects `image:repo:tag@sha256:digest` |
-| Strip `hostname` and `network_mode` | Incompatible with shared pod namespaces |
-| Fix unsupported `depends_on` conditions | Podlet errors on `condition: service_healthy` / `service_completed_successfully`; preserves `required` and `restart` flags |
-| Strip `configs` and non-external `secrets` | Podlet does not support `configs` and only supports external secrets |
-| Auto-expand single-value devices/ports/volumes | Podlet expects `host:container` format |
-| Remove `x-*` extension keys | Podlet does not support compose extensions |
+| `interpolate` | Resolve `$VAR` / `${VAR}` / `${VAR:-default}` from `.env` and environment |
+| `name_inject` | Inject `name:` from parent directory if missing |
+| `normalize` | Strip/fix fields podlet cannot handle |
+| `expand` | Expand single-value devices, ports, and volumes |
+| `strip_extensions` | Remove `x-*` compose extension keys |
 
 > **Note:** `build:` is now handled natively by podlet v0.3.1+ which generates `.build` Quadlet files. No pre-build step is needed.

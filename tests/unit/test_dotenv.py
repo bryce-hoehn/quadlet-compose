@@ -1,9 +1,9 @@
-"""Tests for utils.compose._load_dotenv — .env file loading."""
+"""Tests for hacks.interpolate._load_dotenv — .env file loading."""
 
 import pytest
 from pathlib import Path
 
-from utils.compose import _load_dotenv
+from hacks.interpolate import _load_dotenv
 
 
 class TestLoadDotenv:
