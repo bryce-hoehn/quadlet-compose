@@ -132,8 +132,14 @@ def compose_up(
     # symlinks automatically
     run_cmd(cmd, quiet=True)
 
-    # Reload systemd — the Quadlet generator picks up the new quadlet files,
-    # generates .service files, and creates autostart symlinks from [Install].
+    # Explicitly generate .service files from quadlet unit files.
+    # The systemd Quadlet generator should do this during daemon-reload,
+    # but it may not trigger in all environments (e.g. CI).  Running
+    # podman quadlet --user directly is more reliable and harmless when
+    # the generator has already run.
+    run_cmd(["podman", "quadlet", "--user"], quiet=True)
+
+    # Reload systemd — picks up the newly generated .service files.
     run_cmd(["systemctl", "--user", "daemon-reload"], quiet=True)
 
     # Determine targets
