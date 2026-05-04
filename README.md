@@ -48,7 +48,6 @@ Commands:
 - [podlet](https://github.com/containers/podlet) — generates quadlet files from compose configs
 - [podman](https://podman.io/) — container runtime
 - Python 3.10+
-- [PyYAML](https://pypi.org/project/PyYAML/)
 - [rich](https://pypi.org/project/rich/)
 - [ruamel.yaml](https://pypi.org/project/ruamel.yaml/)
 

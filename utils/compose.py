@@ -6,7 +6,6 @@ from collections import defaultdict
 from pathlib import Path
 from string import Template
 
-import yaml
 from ruamel.yaml import YAML
 
 from .config import get_unit_directory
@@ -262,8 +261,9 @@ def parse_compose(compose_path: Path) -> dict:
         - volume_names: list[str] — volume name keys
         - network_names: list[str] — network name keys
     """
+    ryaml = YAML()
     with open(compose_path, encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
+        data = ryaml.load(f) or {}
 
     project = data.get("name") or compose_path.parent.resolve().name
     services = data.get("services") or {}

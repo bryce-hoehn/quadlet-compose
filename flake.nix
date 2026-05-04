@@ -12,7 +12,6 @@
         pkgs = nixpkgs.legacyPackages.${system};
 
         pythonDeps = with pkgs.python312Packages; [
-          pyyaml
           rich
           ruamel-yaml
         ];
