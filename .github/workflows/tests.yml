@@ -69,9 +69,12 @@ jobs:
         run: |
           mkdir -p ~/.config/containers/systemd
           mkdir -p ~/.config/systemd/user
-
+          
+      - name: Check podman version
+        run: podman --version
+        
       - name: Verify quadlet CLI
-        run: quadlet --version
+        run: podman quadlet list
 
       - name: Run integration tests
         run: pytest -v -m integration --timeout=120
