@@ -79,7 +79,7 @@ COMMANDS = [
                 {
                     "action": "store_true",
                     "default": False,
-                    "help": "Run in background (default with systemd)",
+                    "help": "Run in background without following logs",
                 },
             ),
         ],
@@ -173,6 +173,7 @@ def main() -> None:
             remove_files=getattr(args, "remove_files", False),
             service=getattr(args, "service", None),
             kube=getattr(args, "kube", False),
+            detach=getattr(args, "detach", False),
         )
     except (ComposeError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
