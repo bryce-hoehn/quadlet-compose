@@ -17,7 +17,6 @@ def compose_config(compose_file: str | None = None, **_kwargs) -> None:
     compose_path = resolve_compose_path(compose_file)
     compose_data = parse_compose(compose_path)
 
-    # Read the raw compose file for display
     ryaml = YAML()
     with open(compose_path, encoding="utf-8") as f:
         raw = ryaml.load(f)
