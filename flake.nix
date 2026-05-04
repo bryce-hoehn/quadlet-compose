@@ -64,6 +64,7 @@
             python312
             python312Packages.pip
             python312Packages.pytest
+            python312Packages.pytest-timeout
             podlet
             podman
           ] ++ pythonDeps;

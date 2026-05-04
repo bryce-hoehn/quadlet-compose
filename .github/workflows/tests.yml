@@ -10,25 +10,17 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
         with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          nix_path: nixpkgs=channel:nixpkgs-unstable
 
       - name: Run unit tests
-        run: pytest -v -m "not integration"
+        run: nix develop -c pytest -v -m "not integration"
 
   integration-tests:
     name: Integration Tests
@@ -38,40 +30,18 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
         with:
-          python-version: "3.12"
-
-      - name: Install podman
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y podman
-
-      - name: Enable lingering
-        run: sudo loginctl enable-linger $(whoami)
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@main
-
-      - name: Install podlet
-        run: cargo binstall podlet
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          nix_path: nixpkgs=channel:nixpkgs-unstable
 
       - name: Set up Quadlet directories
         run: |
           mkdir -p ~/.config/containers/systemd
           mkdir -p ~/.config/systemd/user
 
-      - name: Verify quadlet CLI
-        run: quadlet --version
+      - name: Verify podman and quadlet
+        run: nix develop -c bash -c "podman --version && quadlet --version"
 
       - name: Run integration tests
-        run: pytest -v -m integration --timeout=120
+        run: nix develop -c pytest -v -m integration --timeout=120
