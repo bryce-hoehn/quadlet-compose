@@ -14,9 +14,7 @@ Options:
 Commands:
   up              Create and start containers
   down            Stop and remove containers
-  restart         Restart service containers
-  start           Start services
-  stop            Stop services
+  restart         Restart service containers (down + up)
   build           Build or rebuild services
   pull            Pull service images
   ps              List containers
@@ -91,26 +89,15 @@ podlet-compose down --remove-files
 
 ### `restart`
 
-Restarts all services defined in the compose file.
+Stops and restarts all services by running `down` then `up`. Regenerates quadlet files and restarts all containers.
+
+#### `-d, --detach`
+
+Run in the background without following logs (passed through to `up`).
 
 ```bash
 podlet-compose restart
-```
-
-### `start`
-
-Starts services without regenerating quadlet files. Use this when the quadlet files are already installed and you just need to start the services.
-
-```bash
-podlet-compose start
-```
-
-### `stop`
-
-Stops services without removing the quadlet files. The services can be started again with `start`.
-
-```bash
-podlet-compose stop
+podlet-compose restart -d
 ```
 
 ### `build`

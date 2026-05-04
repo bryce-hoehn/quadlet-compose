@@ -2,7 +2,7 @@
 
 1. **`up`** interpolates variables from `.env` and environment, injects a `name` field if missing, then runs `podlet --unit-directory --overwrite --absolute-host-paths compose --pod` to generate quadlet files. It reloads systemd, starts the pod, and follows logs by default (`-d` to detach). With `--kube`, it generates a `.kube` file instead.
 2. **`down`** calls `systemctl --user stop` for the pod/kube service. With `--remove-files`, it also cleans up the generated quadlet files.
-3. **`start`/`stop`/`restart`** detect the deployment mode (pod, kube, or plain) from existing quadlet files and call the corresponding `systemctl --user` commands on the appropriate target.
+3. **`restart`** runs `down` then `up` — stops services, regenerates quadlet files, and starts everything fresh.
 4. **`ps`** calls `systemctl --user status` on the pod/kube service or individual services.
 5. **`logs`** calls `journalctl --user` for each service.
 6. **`build`** parses the compose file for `build:` contexts and runs `podman build`.

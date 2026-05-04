@@ -12,8 +12,6 @@ from compose_cmds import (
     compose_restart,
     compose_ps,
     compose_logs,
-    compose_stop,
-    compose_start,
     compose_top,
     compose_images,
     compose_port,
@@ -89,9 +87,22 @@ COMMANDS = [
         "func": compose_down,
         "args": [("--remove-files", {"action": "store_true"})],
     },
-    {"name": "restart", "help": "Restart service containers", "func": compose_restart},
-    {"name": "start", "help": "Start services", "func": compose_start},
-    {"name": "stop", "help": "Stop services", "func": compose_stop},
+    {
+        "name": "restart",
+        "help": "Restart service containers (down + up)",
+        "func": compose_restart,
+        "args": [
+            ("--kube", {"action": "store_true", "default": False}),
+            (
+                ("-d", "--detach"),
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "help": "Run in background without following logs",
+                },
+            ),
+        ],
+    },
     {
         "name": "build",
         "help": "Build or rebuild services",
