@@ -108,10 +108,14 @@ def compose_up(
     # Create host directories for bind mounts (docker-compose compatibility)
     _ensure_bind_mount_dirs(compose_data, compose_path.parent.resolve())
 
-    # Generate quadlet files (suppress podlet's stdout)
+    # Generate quadlet files with [Install] sections (suppress podlet's stdout).
+    # The Quadlet systemd generator reads [Install] and creates .wants/
+    # symlinks automatically — no `systemctl enable` needed (and it doesn't
+    # work on generated units anyway).
     run_cmd(cmd, quiet=True)
 
-    # Reload systemd to pick up new unit files
+    # Reload systemd — the Quadlet generator picks up the new quadlet files,
+    # generates .service files, and creates autostart symlinks from [Install].
     run_cmd(["systemctl", "--user", "daemon-reload"], quiet=True)
 
     # Determine targets
@@ -122,24 +126,6 @@ def compose_up(
         # via Quadlet's StartWithPod=true (default). No need to start
         # individual container units separately.
         targets = [f"{project}-pod"]
-
-    # Enable autostart for services with a non-"no" restart policy.
-    # All units already have [Install] sections from --install --wanted-by.
-    _AUTOSTART_POLICIES = {"always", "unless-stopped", "on-failure"}
-    enable_targets: list[str] = []
-    if not kube:
-        for svc_name, svc_config in compose_data["services"].items():
-            if not isinstance(svc_config, dict):
-                continue
-            restart = svc_config.get("restart", "no")
-            if restart in _AUTOSTART_POLICIES:
-                enable_targets.append(f"{project}-{svc_name}")
-
-    # Reload systemd to pick up new unit files (with [Install] sections)
-    run_cmd(["systemctl", "--user", "daemon-reload"], quiet=True)
-
-    if enable_targets:
-        run_cmd(["systemctl", "--user", "enable", *enable_targets], quiet=True)
 
     # Start targets with live progress display
     def start_target(target):
