@@ -62,8 +62,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      - name: Enable user systemd lingering
-        run: loginctl enable-linger $(whoami)
+      - name: Set up systemd user session
+        run: |
+          # Enable lingering so the user systemd instance starts at boot
+          loginctl enable-linger $(whoami)
+
+          # Wait for the user systemd instance to be ready
+          for i in $(seq 1 10); do
+            if systemctl --user status >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+
+          # Verify the Quadlet generator is available
+          echo "Quadlet generator locations:"
+          ls -la /usr/lib/systemd/user-generators/ 2>/dev/null || echo "  (no user-generators dir)"
+          ls -la /usr/lib/systemd/user-environment-generators/ 2>/dev/null || echo "  (no user-env-generators dir)"
+
+          # Verify podman quadlet support
+          podman --version
+          which podlet
+
+          # Trigger an initial daemon-reload to warm up generators
+          systemctl --user daemon-reload
 
       - name: Run integration tests
         run: pytest -v -m integration --timeout=120

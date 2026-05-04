@@ -4,7 +4,6 @@ Requires: podman, podlet, and systemd user session.
 Run with: pytest -m integration tests/integration/test_up_down.py
 """
 
-import os
 import subprocess
 import time
 
@@ -26,12 +25,22 @@ def _run(args, expected_rc=0, timeout=60):
         text=True,
         timeout=timeout,
     )
-    if result.returncode != expected_rc:
+    if expected_rc is not None and result.returncode != expected_rc:
         pytest.fail(
             f"Command {args} returned {result.returncode}, expected {expected_rc}\n"
             f"stdout: {result.stdout}\nstderr: {result.stderr}"
         )
     return result
+
+
+def _cleanup(compose_file):
+    """Best-effort cleanup — don't fail if down doesn't work."""
+    subprocess.run(
+        ["python", PODLET_COMPOSE, "-f", compose_file, "down"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
 
 
 class TestUpDown:
@@ -43,7 +52,7 @@ class TestUpDown:
         """podlet-compose up -d should create containers visible via podman ps."""
         try:
             _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "up", "-d"])
-            time.sleep(3)  # Wait for systemd to start containers
+            time.sleep(5)  # Wait for systemd to start containers
 
             result = _run(["podman", "ps", "--format", "{{.Names}}"])
             names = result.stdout.strip()
@@ -51,19 +60,19 @@ class TestUpDown:
                 f"Expected container names in podman ps output, got: {names}"
             )
         finally:
-            _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "down"])
+            _cleanup(self.compose_file)
 
     def test_down_removes_containers(self):
         """podlet-compose down should remove containers."""
         _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "up", "-d"])
-        time.sleep(3)
+        time.sleep(5)
 
         # Verify containers exist before down
         _run(["podman", "container", "exists", "test-compose-web"])
 
         # Down
         _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "down"])
-        time.sleep(2)
+        time.sleep(3)
 
         # Verify containers are gone
         _run(["podman", "container", "exists", "test-compose-web"], expected_rc=1)
@@ -73,25 +82,25 @@ class TestUpDown:
         compose_file = str(FIXTURES / "volumes" / "compose.yaml")
         try:
             _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
-            time.sleep(3)
+            time.sleep(5)
 
             result = _run(["podman", "volume", "exists", "pgdata"])
             assert result.returncode == 0, "Expected volume 'pgdata' to exist"
         finally:
-            _run(["python", PODLET_COMPOSE, "-f", compose_file, "down"])
+            _cleanup(compose_file)
 
     def test_up_with_networks(self):
         """podlet-compose up with networks should create podman networks."""
         compose_file = str(FIXTURES / "networks" / "compose.yaml")
         try:
             _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
-            time.sleep(3)
+            time.sleep(5)
 
             result = _run(["podman", "ps", "--format", "{{.Names}}"])
             names = result.stdout.strip()
             assert "networks-test-web" in names or "networks-test-app" in names
         finally:
-            _run(["python", PODLET_COMPOSE, "-f", compose_file, "down"])
+            _cleanup(compose_file)
 
     def test_up_empty_services_no_error(self):
         """podlet-compose up with empty services should not crash."""
