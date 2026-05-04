@@ -93,9 +93,9 @@ def compose_up(
         "--unit-directory",
         "--overwrite",
         "--skip-services-check",
-        "--install",
-        "--wanted-by",
-        "default.target",
+        # "--install",
+        # "--wanted-by",
+        # "default.target",
         f"--absolute-host-paths={compose_dir}",
         "compose",
     ]
@@ -110,8 +110,7 @@ def compose_up(
 
     # Generate quadlet files with [Install] sections (suppress podlet's stdout).
     # The Quadlet systemd generator reads [Install] and creates .wants/
-    # symlinks automatically — no `systemctl enable` needed (and it doesn't
-    # work on generated units anyway).
+    # symlinks automatically
     run_cmd(cmd, quiet=True)
 
     # Reload systemd — the Quadlet generator picks up the new quadlet files,
