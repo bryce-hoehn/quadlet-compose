@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from collections import defaultdict
 from pathlib import Path
 from string import Template
 
@@ -40,10 +41,11 @@ def _load_dotenv(compose_path: Path) -> dict[str, str]:
 def _interpolate(text: str, variables: dict[str, str]) -> str:
     """Replace ``$VAR`` and ``${VAR}`` patterns using string.Template.
 
-    Unresolved variables are left as-is (safe_substitute).
-    ``$$`` is treated as a literal ``$`` escape.
+    Unresolved variables are replaced with empty strings, matching
+    docker-compose behavior.  ``$$`` is treated as a literal ``$`` escape.
     """
-    return Template(text).safe_substitute(variables)
+    mapping = defaultdict(str, variables)
+    return Template(text).substitute(mapping)
 
 
 def resolve_compose_path(compose_file: str | None) -> Path:
