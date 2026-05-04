@@ -71,7 +71,18 @@ COMMANDS = [
         "name": "up",
         "help": "Create and start containers",
         "func": compose_up,
-        "args": [("--kube", {"action": "store_true", "default": False})],
+        "args": [
+            ("--kube", {"action": "store_true", "default": False}),
+            (
+                "-d",
+                "--detach",
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "help": "Run in background (default with systemd)",
+                },
+            ),
+        ],
     },
     {
         "name": "down",
