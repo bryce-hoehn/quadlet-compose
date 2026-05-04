@@ -96,11 +96,6 @@ Commands:
   version         Show version information
 ```
 
-# Use
-cd /path/to/compose/project
-podlet-compose up
-```
-
 ## Requirements
 
 - [podlet](https://github.com/containers/podlet) — generates quadlet files from compose configs
@@ -111,12 +106,12 @@ podlet-compose up
 
 ## Documentation
 
-Full documentation is available in the [GitHub Wiki](https://github.com/bryce-hoehn/podlet-binding/wiki):
+Full documentation is available in the [GitHub Wiki](https://github.com/bryce-hoehn/podlet-compose/wiki):
 
-- **[Installation](https://github.com/bryce-hoehn/podlet-binding/wiki/Installation)** — Pip, PyInstaller binary, Nix, and podman compose provider setup
-- **[Commands](https://github.com/bryce-hoehn/podlet-binding/wiki/Commands)** — Full command reference
-- **[How It Works](https://github.com/bryce-hoehn/podlet-binding/wiki/How-It-Works)** — Technical architecture and internals
-- **[Limitations](https://github.com/bryce-hoehn/podlet-binding/wiki/Limitations)** — Known limitations
+- **[Installation](https://github.com/bryce-hoehn/podlet-compose/wiki/Installation)** — Pip, PyInstaller binary, Nix, and podman compose provider setup
+- **[Commands](https://github.com/bryce-hoehn/podlet-compose/wiki/Commands)** — Full command reference
+- **[How It Works](https://github.com/bryce-hoehn/podlet-compose/wiki/How-It-Works)** — Technical architecture and internals
+- **[Limitations](https://github.com/bryce-hoehn/podlet-compose/wiki/Limitations)** — Known limitations
 
 ## License
 
