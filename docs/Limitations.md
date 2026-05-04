@@ -6,14 +6,9 @@
 - Some `podman compose` CLI options (e.g., `--env-file`, `--profile`) are not yet handled.
 - Services always run as systemd user units — there is no system-level (root) mode (feature, not a bug!).
 - Each compose file generates its own Podman pod. Containers in different pods **cannot share network namespaces** — `network_mode: "service:other-container"` only works when both services are in the **same** compose file (and therefore the same pod).
-
-## Inherited from [podlet](https://github.com/containers/podlet)
-
-- `build:` in compose files is not supported and will produce an error.
-- Not all compose file options are supported; unsupported options cause errors.
-- A top-level `name:` field is required when using `--pod` or `--kube` mode (podlet-compose auto-injects the directory name if missing).
-- Relative host paths in Kubernetes YAML files are not modified when using `--pod`.
-- Only host paths in standard Quadlet options (not `PodmanArgs=`) are resolved to absolute paths.
+- Extension keys are not supported.
+- Hostname / network_mode not supported.
+- Depends_on conditions are not supported..
 
 ## Automatic workarounds applied
 
