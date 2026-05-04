@@ -135,9 +135,9 @@ def compose_up(
     # Explicitly generate .service files from quadlet unit files.
     # The systemd Quadlet generator should do this during daemon-reload,
     # but it may not trigger in all environments (e.g. CI).  Running
-    # podman quadlet --user directly is more reliable and harmless when
-    # the generator has already run.
-    run_cmd(["podman", "quadlet", "--user"], quiet=True)
+    # podman quadlet directly is more reliable and harmless when the
+    # generator has already run.
+    run_cmd(["podman", "quadlet"], quiet=True)
 
     # Reload systemd — picks up the newly generated .service files.
     run_cmd(["systemctl", "--user", "daemon-reload"], quiet=True)
