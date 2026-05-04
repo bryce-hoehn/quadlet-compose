@@ -11,6 +11,7 @@ A thin wrapper around [podlet](https://github.com/containers/podlet) that acts a
 pip3 install https://github.com/bryce-hoehn/podlet-compose/archive/main.tar.gz
 ```
 
+See [Installation](https://github.com/bryce-hoehn/podlet-compose/wiki/Installation) for more installation options.
 ## Usage
 
 ```
@@ -49,6 +50,7 @@ Commands:
 - Python 3.10+
 - [PyYAML](https://pypi.org/project/PyYAML/)
 - [rich](https://pypi.org/project/rich/)
+- [ruamel.yaml](https://pypi.org/project/ruamel.yaml/)
 
 ## Documentation
 
