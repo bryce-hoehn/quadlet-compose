@@ -46,7 +46,7 @@ jobs:
       - name: Install podman
         run: |
           sudo apt-get update
-          sudo apt-get install -y podman quadlet
+          sudo apt-get install -y podman
 
       - name: Enable lingering
         run: sudo loginctl enable-linger $(whoami)
