@@ -1,5 +1,6 @@
 """compose_up - Generate quadlet files from compose.yaml and start services."""
 
+import getpass
 import os
 import subprocess
 from pathlib import Path
@@ -60,6 +61,18 @@ def compose_up(
     By default, follows service logs with journalctl (attached mode).
     Use -d/--detach to start without following logs.
     """
+
+    try:
+        linger_path = Path(f"/var/lib/systemd/linger/{getpass.getuser()}")
+        if not linger_path.exists():
+            _console.print(
+                "[yellow]⚠[/yellow] Lingering is not enabled. "
+                "Services will not autostart on boot.\n"
+                "  Fix: [cyan]loginctl enable-linger[/cyan]\n"
+            )
+    except Exception:
+        pass  # Non-critical check, don't block on failure
+
     compose_path = resolve_compose_path(compose_file)
     compose_data = parse_compose(compose_path)
     project = compose_data["project"]
@@ -104,6 +117,21 @@ def compose_up(
         targets = [f"{project}-pod"] + [
             f"{project}-{svc}" for svc in compose_data["service_names"]
         ]
+
+    # Enable autostart for services with a non-"no" restart policy
+    # (mirrors Docker's behavior: restart: always/unless-stopped/on-failure
+    # causes containers to start on daemon boot)
+    _AUTOSTART_POLICIES = {"always", "unless-stopped", "on-failure"}
+    enable_targets: list[str] = []
+    if not kube:
+        for svc_name, svc_config in compose_data["services"].items():
+            if not isinstance(svc_config, dict):
+                continue
+            restart = svc_config.get("restart", "no")
+            if restart in _AUTOSTART_POLICIES:
+                enable_targets.append(f"{project}-{svc_name}")
+    if enable_targets:
+        run_cmd(["systemctl", "--user", "enable", *enable_targets], quiet=True)
 
     # Start targets with live progress display
     def start_target(target):
