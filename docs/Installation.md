@@ -20,75 +20,19 @@ Then move it to your PATH:
 
 ```bash
 chmod +x podlet-compose
-sudo mv podlet-compose /usr/local/bin/
-```
-
-Or if you already have the repo cloned, build locally:
-
-```bash
-sh scripts/generate_binary_using_dockerfile.sh
-```
-
-## Nix
-
-Build and install using the flake:
-
-```bash
-# Install directly
-nix profile install github:bryce-hoehn/podlet-binding
-
-# Or run ad-hoc
-nix run github:bryce-hoehn/podlet-binding -- up
-```
-
-To use a specific branch (e.g., `dev`):
-
-```bash
-nix profile install github:bryce-hoehn/podlet-binding/dev
-```
-
-If you have the repo cloned locally:
-
-```bash
-# Enter a dev shell with all dependencies
-nix develop
-
-# Build the package
-nix build
-./result/bin/podlet-compose --help
-```
-
-To use in a NixOS or home-manager config, add the flake input and reference the package:
-
-```nix
-inputs.podlet-compose.url = "github:bryce-hoehn/podlet-binding";
-
-# In your system/home config:
-environment.systemPackages = [ inputs.podlet-compose.packages.${system}.default ];
+sudo mv podlet-compose ~/.local/bin/
 ```
 
 ## Installing as a podman compose provider
 
 podlet-compose can be registered as a [compose provider](https://docs.podman.io/en/latest/markdown/podman-compose.1.html) for `podman compose`, so that `podman compose up` uses podlet-compose instead of docker-compose or podman-compose.
 
-1. Install podlet-compose:
-
-   ```bash
-   pip install .
-   ```
-
-2. Edit `~/.config/containers/containers.conf` (create it if it doesn't exist) and add:
+Edit `~/.config/containers/containers.conf` (create it if it doesn't exist) and add:
 
    ```toml
    [engine]
    compose_providers = ["podlet-compose"]
    compose_warning_logs = false
-   ```
-
-3. Verify it works:
-
-   ```bash
-   podman compose up
    ```
 
 You can also set the provider via the `PODMAN_COMPOSE_PROVIDER` environment variable:
@@ -98,4 +42,78 @@ export PODMAN_COMPOSE_PROVIDER=podlet-compose
 podman compose up
 ```
 
-**Note:** podman passes its own options (e.g., `--env-file`, `--profile`) to the compose provider. podlet-compose handles the core compose commands (`up`, `down`, `start`, `stop`, `restart`, `ps`, `logs`, `build`, `pull`) but may not support all podman compose options. Unsupported options will be reported as errors.
+
+## Nix
+
+To use in a NixOS config, add the flake input and reference the package. Example:
+
+```nix
+{
+  description = "Podlet-compose NixOS Configuration";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    podlet-compose.url = "github:bryce-hoehn/podlet-compose";
+  };
+
+  outputs = {
+    self, 
+    nixpkgs,
+    podlet-compose,
+    ...   
+  }@inputs: {
+    nixosConfigurations = {
+      my_hosename = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ./configuration.nix
+          ({ pkgs, ... }: {
+            environment.systemPackages = [ podlet-compose.packages.${pkgs.system}.default ];
+          })
+        ];
+      };
+    };
+  };
+}
+```
+
+### Podman
+
+```nix
+  virtualisation.podman = {
+    enable = true;
+    dockerCompat = true; # optional, aliases docker -> podman
+    dockerSocket.enable = false; # optional, defaults to false
+    defaultNetwork.settings.dns_enabled = true; # i forget
+  };
+```
+
+### Compose Provider
+
+Make podlet-compose the default podman compose provider.
+
+```nix
+  virtualisation.containers.containersConf.settings = {
+    containers = {
+      userns = "keep-id"; # probably optional?
+    };
+    engine = {
+      compose_providers = ["podlet-compose"]; # set podlet-compose as podman compose provider
+      compose_warning_logs = false; # disables annoying podman compose warning
+    };
+  };
+```
+
+### Linger
+
+Required for autostarting services.
+
+```nix
+  users.users.bryce = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" "podman" ];
+    shell = pkgs.fish; # unrelated but fish is great
+    linger = true; # <---
+    autoSubUidGidRange = true; # i forget what this does
+  };
+```
