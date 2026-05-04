@@ -1,6 +1,7 @@
 """compose_pull - Pull images for services defined in the compose file."""
 
 from utils import resolve_compose_path, parse_compose, get_image_services, run_cmd
+from utils.progress import run_with_progress
 
 
 def compose_pull(
@@ -15,7 +16,6 @@ def compose_pull(
     services = get_image_services(compose_data)
 
     if not services:
-        print("No services with images found.")
         return
 
     # Filter to a specific service if requested
@@ -24,8 +24,13 @@ def compose_pull(
             raise ValueError(f"Service '{service}' not found in compose file.")
         services = {service: services[service]}
 
-    for svc_name, image in services.items():
-        print(f"Pulling image for service '{svc_name}': {image} ...")
-        run_cmd(["podman", "pull", image])
+    targets = list(services.keys())
+    images = services  # name -> image ref
 
-    print("Done.")
+    def pull_target(svc_name):
+        run_cmd(["podman", "pull", images[svc_name]])
+
+    def label(svc_name):
+        return "Image", images[svc_name]
+
+    run_with_progress(targets, pull_target, "Pulled", label_fn=label)
