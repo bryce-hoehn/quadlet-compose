@@ -16,12 +16,13 @@ def compose_up(compose_file: str | None = None, kube: bool = False, **_kwargs) -
     unit_dir = get_unit_directory()
 
     # Build podlet command with docker-compose-compatible defaults
+    # podlet options and must precede the "compose" subcommand.
     cmd = [
         "podlet",
-        "compose",
         "--unit-directory",
         "--overwrite",
         "--absolute-host-paths",
+        "compose",
     ]
     if kube:
         cmd.append("--kube")
