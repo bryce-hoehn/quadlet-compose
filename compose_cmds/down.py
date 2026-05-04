@@ -7,6 +7,7 @@ from utils import (
     get_service_targets,
     run_cmd,
 )
+from utils.progress import run_with_progress
 
 
 def compose_down(
@@ -26,13 +27,15 @@ def compose_down(
     unit_dir = get_unit_directory()
 
     if not service_names:
-        print("No services defined in compose file.")
         return
 
     # Stop services using the appropriate target for the deployment mode
     targets = get_service_targets(compose_data)
-    print(f"Stopping {', '.join(targets)} ...")
-    run_cmd(["systemctl", "--user", "stop", *targets])
+
+    def stop_target(target):
+        run_cmd(["systemctl", "--user", "stop", target])
+
+    run_with_progress(targets, stop_target, "Stopped")
 
     if remove_files:
         # Remove quadlet files derived from the compose file
@@ -68,11 +71,7 @@ def compose_down(
             files_to_remove.append(kube_yaml)
 
         for f in files_to_remove:
-            print(f"Removing {f.name} ...")
             run_cmd(["rm", str(f)])
 
         if files_to_remove:
-            print("Reloading systemd daemon ...")
             run_cmd(["systemctl", "--user", "daemon-reload"])
-
-    print("Done.")

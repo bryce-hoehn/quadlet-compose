@@ -4,6 +4,8 @@ import os
 import subprocess
 from pathlib import Path
 
+from rich.console import Console
+
 from utils import (
     get_unit_directory,
     resolve_compose_path,
@@ -11,6 +13,9 @@ from utils import (
     parse_compose,
     run_cmd,
 )
+from utils.progress import run_with_progress
+
+_console = Console()
 
 
 def _ensure_bind_mount_dirs(compose_data: dict, compose_dir: Path) -> None:
@@ -36,7 +41,6 @@ def _ensure_bind_mount_dirs(compose_data: dict, compose_dir: Path) -> None:
             # Resolve relative paths against the compose file directory
             host_path = (compose_dir / raw_host).resolve()
             if not host_path.exists():
-                print(f"Creating directory: {host_path}")
                 os.makedirs(host_path, exist_ok=True)
 
 
@@ -58,7 +62,6 @@ def compose_up(
     compose_path = resolve_compose_path(compose_file)
     compose_data = parse_compose(compose_path)
     project = compose_data["project"]
-    unit_dir = get_unit_directory()
 
     # Ensure compose file has a `name` field (required by podlet --pod/--kube)
     podlet_input = prepare_compose(compose_path)
@@ -84,17 +87,13 @@ def compose_up(
     # Create host directories for bind mounts (docker-compose compatibility)
     _ensure_bind_mount_dirs(compose_data, compose_path.parent.resolve())
 
-    # Generate quadlet files
-    print(f"Generating quadlet files in {unit_dir} ...")
-    result = run_cmd(cmd)
-    if result.stdout:
-        print(result.stdout, end="")
+    # Generate quadlet files (suppress podlet's stdout)
+    run_cmd(cmd)
 
     # Reload systemd to pick up new unit files
-    print("Reloading systemd daemon ...")
     run_cmd(["systemctl", "--user", "daemon-reload"])
 
-    # Start the appropriate service targets
+    # Determine targets
     if kube:
         targets = [project]
     else:
@@ -105,17 +104,14 @@ def compose_up(
             f"{project}-{svc}" for svc in compose_data["service_names"]
         ]
 
-    for target in targets:
-        print(f"Starting {target} ...")
+    # Start targets with live progress display
+    def start_target(target):
         run_cmd(["systemctl", "--user", "start", target])
 
-    if detach:
-        print("Done.")
-    else:
+    run_with_progress(targets, start_target, "Started")
+
+    if not detach:
         # Follow container logs via podman (Ctrl+C to stop)
-        print("Following logs (Ctrl+C to stop) ...")
-        # Container names match the service names as set by podlet
-        # (ContainerName= in the quadlet file)
         if kube:
             container_names = [project]
         else:
@@ -124,4 +120,4 @@ def compose_up(
         try:
             subprocess.run(podman_args)
         except KeyboardInterrupt:
-            print("\nDetached from logs. Services are still running.")
+            _console.print("\nDetached from logs. Services are still running.")
