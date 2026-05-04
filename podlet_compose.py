@@ -83,7 +83,7 @@ COMMANDS = [
         "name": "down",
         "help": "Stop and remove containers",
         "func": compose_down,
-        "args": [("--remove-files", {"action": "store_true"})],
+        "args": [],
     },
     {
         "name": "restart",
@@ -181,7 +181,6 @@ def main() -> None:
     try:
         args.func(
             compose_file=args.compose_file,
-            remove_files=getattr(args, "remove_files", False),
             service=getattr(args, "service", None),
             kube=getattr(args, "kube", False),
             detach=getattr(args, "detach", False),
