@@ -2,10 +2,12 @@
 
 import os
 import tempfile
+from collections import defaultdict
 from pathlib import Path
 from string import Template
 
 import yaml
+from ruamel.yaml import YAML
 
 from .config import get_unit_directory
 from .utils import ComposeError
@@ -40,10 +42,123 @@ def _load_dotenv(compose_path: Path) -> dict[str, str]:
 def _interpolate(text: str, variables: dict[str, str]) -> str:
     """Replace ``$VAR`` and ``${VAR}`` patterns using string.Template.
 
-    Unresolved variables are left as-is (safe_substitute).
-    ``$$`` is treated as a literal ``$`` escape.
+    Unresolved variables are replaced with empty strings, matching
+    docker-compose behavior.  ``$$`` is treated as a literal ``$`` escape.
     """
-    return Template(text).safe_substitute(variables)
+    mapping = defaultdict(str, variables)
+    return Template(text).substitute(mapping)
+
+
+# ---------------------------------------------------------------------------
+# Podlet workarounds — applied via ruamel.yaml for round-trip preservation
+# ---------------------------------------------------------------------------
+
+
+def _strip_image_tags_with_digests(data: dict) -> None:
+    """Strip image tags when a digest is also present.
+
+    Podlet rejects ``image: foo:v1@sha256:abc``.  This converts it to
+    ``image: foo@sha256:abc`` (keep digest, drop tag).
+    """
+    services = data.get("services")
+    if not services:
+        return
+    for svc in services.values():
+        if not isinstance(svc, dict):
+            continue
+        image = svc.get("image")
+        if isinstance(image, str) and "@" in image and ":" in image.split("@")[0]:
+            # image has both tag and digest: strip the tag
+            name_digest = image.split(":")
+            # Rejoin everything except the tag before @
+            # e.g. "ghcr.io/immich/immich:v1.2.3@sha256:abc" → "ghcr.io/immich/immich@sha256:abc"
+            at_idx = image.index("@")
+            last_colon_before_at = image.rfind(":", 0, at_idx)
+            if last_colon_before_at > 0:
+                svc["image"] = image[:last_colon_before_at] + image[at_idx:]
+
+
+def _expand_single_values(data: dict) -> None:
+    """Auto-expand single-value entries in devices, ports, and volumes.
+
+    Docker-compose allows short forms like ``devices: ["/dev/dri"]`` or
+    ``ports: ["8080"]``.  Podlet requires the full ``host:container`` form.
+    This expands:
+    - ``devices: ["/dev/dri"]`` → ``devices: ["/dev/dri:/dev/dri"]``
+    - ``ports: ["8080"]`` → ``ports: ["8080:8080"]``
+    - ``volumes: ["./config"]`` → ``volumes: ["./config:/config"]`` (path-like)
+    Named volumes (no ``/`` or ``.`` prefix) are left as-is.
+    """
+    services = data.get("services")
+    if not services:
+        return
+    for svc in services.values():
+        if not isinstance(svc, dict):
+            continue
+
+        # Expand devices
+        _expand_list(svc, "devices", colon_expand=True)
+
+        # Expand ports
+        _expand_list(svc, "ports", colon_expand=True)
+
+        # Expand volumes (only path-like single values)
+        vols = svc.get("volumes")
+        if isinstance(vols, list):
+            new_vols = []
+            for vol in vols:
+                if isinstance(vol, str) and ":" not in vol:
+                    # Named volumes have no / or . prefix — leave them alone
+                    if "/" in vol or vol.startswith("."):
+                        new_vols.append(f"{vol}:{vol}")
+                    else:
+                        new_vols.append(vol)
+                else:
+                    new_vols.append(vol)
+            svc["volumes"] = new_vols
+
+
+def _expand_list(svc: dict, key: str, *, colon_expand: bool) -> None:
+    """Expand single-value entries in a service list by duplicating the value."""
+    items = svc.get(key)
+    if not isinstance(items, list):
+        return
+    new_items = []
+    for item in items:
+        if isinstance(item, str) and ":" not in item:
+            new_items.append(f"{item}:{item}")
+        else:
+            new_items.append(item)
+    svc[key] = new_items
+
+
+def _strip_extensions(data: dict) -> None:
+    """Remove all top-level ``x-*`` extension keys from the compose data.
+
+    Podlet does not support compose extensions (e.g. ``x-custom``, ``x-env``).
+    """
+    keys_to_remove = [k for k in data if isinstance(k, str) and k.startswith("x-")]
+    for k in keys_to_remove:
+        del data[k]
+
+
+def _inject_build_tags(data: dict) -> None:
+    """Inject a default image tag for services with ``build:`` but no ``image:``.
+
+    Podlet requires an image tag when converting ``build:`` to a quadlet
+    ``.build`` file.  This adds ``image: {service_name}:latest`` when missing.
+    """
+    services = data.get("services")
+    if not services:
+        return
+    for svc_name, svc in services.items():
+        if not isinstance(svc, dict):
+            continue
+        if "build" in svc and "image" not in svc:
+            svc["image"] = f"{svc_name}:latest"
+
+
+# ---------------------------------------------------------------------------
 
 
 def resolve_compose_path(compose_file: str | None) -> Path:
@@ -68,13 +183,15 @@ def resolve_compose_path(compose_file: str | None) -> Path:
 def prepare_compose(compose_path: Path) -> Path:
     """Prepare a compose file for use with ``podlet compose``.
 
-    Performs variable interpolation (``$VAR`` and ``${VAR}``) using values
-    from the ``.env`` file next to the compose file and the process
-    environment (env vars take precedence).  Unresolved variables are left
-    as-is.  ``$$`` is treated as a literal ``$`` escape.
+    Applies the following transformations (all via ruamel.yaml round-trip):
 
-    Also ensures a top-level ``name`` field exists (required by ``--pod``),
-    defaulting to the parent directory name.
+    1. Variable interpolation (``$VAR`` / ``${VAR}``) from ``.env`` and
+       environment — unresolved vars become empty strings.
+    2. Strip image tags when a digest is also present.
+    3. Auto-expand single-value devices, ports, and path-like volumes.
+    4. Remove ``x-*`` compose extension keys.
+    5. Inject ``image:`` for services with ``build:`` but no image tag.
+    6. Inject ``name:`` from parent directory if missing.
     """
     raw = compose_path.read_text(encoding="utf-8")
 
@@ -84,19 +201,30 @@ def prepare_compose(compose_path: Path) -> Path:
     # Interpolate variables in the raw text
     resolved = _interpolate(raw, variables)
 
-    data = yaml.safe_load(resolved) or {}
+    # Parse with ruamel.yaml for round-trip preservation
+    ryaml = YAML()
+    data = ryaml.load(resolved)
+    if data is None:
+        data = {}
+
+    # Apply podlet workarounds
+    _strip_image_tags_with_digests(data)
+    _expand_single_values(data)
+    _strip_extensions(data)
+    _inject_build_tags(data)
 
     # Inject name from parent directory if missing
-    if not data.get("name"):
+    if "name" not in data:
         data["name"] = compose_path.parent.resolve().name
 
+    # Write to temp file
     tmp = tempfile.NamedTemporaryFile(
         mode="w",
         suffix=compose_path.suffix,
         prefix="podlet-compose-",
         delete=False,
     )
-    yaml.dump(data, tmp, default_flow_style=False, sort_keys=False)
+    ryaml.dump(data, tmp)
     tmp.close()
     return Path(tmp.name)
 
