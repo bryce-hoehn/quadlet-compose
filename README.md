@@ -34,7 +34,7 @@ Then move it to your PATH:
 
 ```bash
 chmod +x podlet-compose
-sudo mv podlet-compose /usr/local/bin/
+mv podlet-compose $HOME/.local/bin
 ```
 
 Or if you already have the repo cloned, build locally:
