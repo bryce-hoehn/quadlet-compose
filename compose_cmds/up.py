@@ -92,6 +92,9 @@ def compose_up(
         "podlet",
         "--unit-directory",
         "--overwrite",
+        "--install",
+        "--wanted-by",
+        "default.target",
         f"--absolute-host-paths={compose_dir}",
         "compose",
     ]
@@ -121,21 +124,23 @@ def compose_up(
             f"{project}-{svc}" for svc in compose_data["service_names"]
         ]
 
-    # Enable autostart for services with a non-"no" restart policy
-    # Uses add-wants instead of enable because quadlet-generated units
-    # lack [Install] sections and are marked as "transient/generated".
+    # Enable autostart for services with a non-"no" restart policy.
+    # All units already have [Install] sections from --install --wanted-by.
     _AUTOSTART_POLICIES = {"always", "unless-stopped", "on-failure"}
+    enable_targets: list[str] = []
     if not kube:
         for svc_name, svc_config in compose_data["services"].items():
             if not isinstance(svc_config, dict):
                 continue
             restart = svc_config.get("restart", "no")
             if restart in _AUTOSTART_POLICIES:
-                target = f"{project}-{svc_name}"
-                run_cmd(
-                    ["systemctl", "--user", "add-wants", "default.target", target],
-                    quiet=True,
-                )
+                enable_targets.append(f"{project}-{svc_name}")
+
+    # Reload systemd to pick up new unit files (with [Install] sections)
+    run_cmd(["systemctl", "--user", "daemon-reload"], quiet=True)
+
+    if enable_targets:
+        run_cmd(["systemctl", "--user", "enable", *enable_targets], quiet=True)
 
     # Start targets with live progress display
     def start_target(target):
