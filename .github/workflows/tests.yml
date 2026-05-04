@@ -46,7 +46,10 @@ jobs:
       - name: Install podman
         run: |
           sudo apt-get update
-          sudo apt-get install -y podman
+          sudo apt-get install -y podman quadlet
+
+      - name: Enable lingering
+        run: sudo loginctl enable-linger $(whoami)
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -66,6 +69,9 @@ jobs:
         run: |
           mkdir -p ~/.config/containers/systemd
           mkdir -p ~/.config/systemd/user
+
+      - name: Verify quadlet CLI
+        run: quadlet --version
 
       - name: Run integration tests
         run: pytest -v -m integration --timeout=120
