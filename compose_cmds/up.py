@@ -1,6 +1,8 @@
 """compose_up - Generate quadlet files from compose.yaml and start services."""
 
+import os
 import subprocess
+from pathlib import Path
 
 from utils import (
     get_unit_directory,
@@ -9,6 +11,33 @@ from utils import (
     parse_compose,
     run_cmd,
 )
+
+
+def _ensure_bind_mount_dirs(compose_data: dict, compose_dir: Path) -> None:
+    """Create host directories for bind mounts that don't yet exist.
+
+    Scans all service volumes and creates missing host paths.
+    Named volumes (without a path separator) are skipped.
+    """
+    for svc_config in compose_data["services"].values():
+        if not isinstance(svc_config, dict):
+            continue
+        for vol in svc_config.get("volumes", []):
+            # Volume can be a string ("host:container[:mode]") or a dict
+            host_spec = vol if isinstance(vol, str) else vol.get("source", "")
+            if not host_spec:
+                continue
+            # Split on ':' — host path is the first part
+            parts = host_spec.split(":")
+            raw_host = parts[0]
+            # Skip named volumes (no path separator and doesn't start with . or /)
+            if "/" not in raw_host and not raw_host.startswith("."):
+                continue
+            # Resolve relative paths against the compose file directory
+            host_path = (compose_dir / raw_host).resolve()
+            if not host_path.exists():
+                print(f"Creating directory: {host_path}")
+                os.makedirs(host_path, exist_ok=True)
 
 
 def compose_up(
@@ -48,6 +77,9 @@ def compose_up(
     else:
         cmd.append("--pod")
     cmd.append(str(podlet_input))
+
+    # Create host directories for bind mounts (docker-compose compatibility)
+    _ensure_bind_mount_dirs(compose_data, compose_path.parent.resolve())
 
     # Generate quadlet files
     print(f"Generating quadlet files in {unit_dir} ...")
