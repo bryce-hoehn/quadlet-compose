@@ -23,14 +23,12 @@ podlet-compose up
 - [PyYAML](https://pypi.org/project/PyYAML/)
 - [rich](https://pypi.org/project/rich/)
 
-## Documentation
+## Wiki Pages
 
-Full documentation is available in the [GitHub Wiki](https://github.com/bryce-hoehn/podlet-binding/wiki):
-
-- **[Installation](https://github.com/bryce-hoehn/podlet-binding/wiki/Installation)** — Pip, PyInstaller binary, Nix, and podman compose provider setup
-- **[Commands](https://github.com/bryce-hoehn/podlet-binding/wiki/Commands)** — Full command reference
-- **[How It Works](https://github.com/bryce-hoehn/podlet-binding/wiki/How-It-Works)** — Technical architecture and internals
-- **[Limitations](https://github.com/bryce-hoehn/podlet-binding/wiki/Limitations)** — Known limitations
+- **[Installation](Installation)** — Pip, PyInstaller binary, Nix, and podman compose provider setup
+- **[Commands](Commands)** — Full command reference
+- **[How It Works](How-It-Works)** — Technical architecture and internals
+- **[Limitations](Limitations)** — Known limitations (podlet-compose and inherited from podlet)
 
 ## License
 

@@ -2,7 +2,13 @@
 
 import subprocess
 
-from utils import get_unit_directory, resolve_compose_path, parse_compose, run_cmd
+from utils import (
+    get_unit_directory,
+    resolve_compose_path,
+    prepare_compose,
+    parse_compose,
+    run_cmd,
+)
 
 
 def compose_up(
@@ -25,6 +31,9 @@ def compose_up(
     project = compose_data["project"]
     unit_dir = get_unit_directory()
 
+    # Ensure compose file has a `name` field (required by podlet --pod/--kube)
+    podlet_input = prepare_compose(compose_path)
+
     # Build podlet command with docker-compose-compatible defaults
     # podlet options and must precede the "compose" subcommand.
     cmd = [
@@ -38,7 +47,7 @@ def compose_up(
         cmd.append("--kube")
     else:
         cmd.append("--pod")
-    cmd.append(str(compose_path))
+    cmd.append(str(podlet_input))
 
     # Generate quadlet files
     print(f"Generating quadlet files in {unit_dir} ...")
