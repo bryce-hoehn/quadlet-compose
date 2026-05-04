@@ -114,14 +114,12 @@ def compose_up(
     else:
         # Follow container logs via podman (Ctrl+C to stop)
         print("Following logs (Ctrl+C to stop) ...")
-        # In pod mode, container names are systemd-{project}-{service}
-        # In kube mode, use the pod name
+        # Container names match the service names as set by podlet
+        # (ContainerName= in the quadlet file)
         if kube:
-            container_names = [f"systemd-{project}"]
+            container_names = [project]
         else:
-            container_names = [
-                f"systemd-{project}-{svc}" for svc in compose_data["service_names"]
-            ]
+            container_names = list(compose_data["service_names"])
         podman_args = ["podman", "logs", "-f"] + container_names
         try:
             subprocess.run(podman_args)
