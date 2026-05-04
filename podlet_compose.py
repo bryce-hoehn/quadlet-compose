@@ -58,9 +58,7 @@ def print_help() -> None:
     console.print()
     console.print("Commands:", style="bold dark_orange")
     for cmd in COMMANDS:
-        console.print(
-            "  ", Text(f"{cmd['name']:<16}", style="cyan"), cmd["help"], sep=""
-        )
+        console.print(" ", Text(f"{cmd['name']:<16}", style="cyan"), "   ", cmd["help"])
     console.print()
 
 
