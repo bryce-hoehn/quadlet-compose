@@ -3,6 +3,7 @@
 from .config import get_unit_directory
 from .compose import (
     resolve_compose_path,
+    prepare_compose,
     parse_compose,
     get_image_services,
     get_build_services,
@@ -13,6 +14,7 @@ from .utils import ComposeError, run_cmd
 __all__ = [
     "get_unit_directory",
     "resolve_compose_path",
+    "prepare_compose",
     "parse_compose",
     "get_image_services",
     "get_build_services",

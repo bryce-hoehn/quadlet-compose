@@ -1,6 +1,9 @@
 """Compose file parsing and resolution."""
 
+import os
+import tempfile
 from pathlib import Path
+from string import Template
 
 import yaml
 
@@ -16,6 +19,31 @@ COMPOSE_FILE_NAMES = [
     "podman-compose.yaml",
     "podman-compose.yml",
 ]
+
+
+def _load_dotenv(compose_path: Path) -> dict[str, str]:
+    """Load variables from a .env file next to the compose file."""
+    env_path = compose_path.parent.resolve() / ".env"
+    if not env_path.is_file():
+        return {}
+    env = {}
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            key, _, value = line.partition("=")
+            env[key.strip()] = value.strip().strip("\"'")
+    return env
+
+
+def _interpolate(text: str, variables: dict[str, str]) -> str:
+    """Replace ``$VAR`` and ``${VAR}`` patterns using string.Template.
+
+    Unresolved variables are left as-is (safe_substitute).
+    ``$$`` is treated as a literal ``$`` escape.
+    """
+    return Template(text).safe_substitute(variables)
 
 
 def resolve_compose_path(compose_file: str | None) -> Path:
@@ -35,6 +63,42 @@ def resolve_compose_path(compose_file: str | None) -> Path:
         if candidate.is_file():
             return candidate
     raise ComposeError("No compose file found in current directory.")
+
+
+def prepare_compose(compose_path: Path) -> Path:
+    """Prepare a compose file for use with ``podlet compose``.
+
+    Performs variable interpolation (``$VAR`` and ``${VAR}``) using values
+    from the ``.env`` file next to the compose file and the process
+    environment (env vars take precedence).  Unresolved variables are left
+    as-is.  ``$$`` is treated as a literal ``$`` escape.
+
+    Also ensures a top-level ``name`` field exists (required by ``--pod``),
+    defaulting to the parent directory name.
+    """
+    raw = compose_path.read_text(encoding="utf-8")
+
+    # Build variable table: .env values overridden by actual environment
+    variables = {**_load_dotenv(compose_path), **os.environ}
+
+    # Interpolate variables in the raw text
+    resolved = _interpolate(raw, variables)
+
+    data = yaml.safe_load(resolved) or {}
+
+    # Inject name from parent directory if missing
+    if not data.get("name"):
+        data["name"] = compose_path.parent.resolve().name
+
+    tmp = tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=compose_path.suffix,
+        prefix="podlet-compose-",
+        delete=False,
+    )
+    yaml.dump(data, tmp, default_flow_style=False, sort_keys=False)
+    tmp.close()
+    return Path(tmp.name)
 
 
 def parse_compose(compose_path: Path) -> dict:
