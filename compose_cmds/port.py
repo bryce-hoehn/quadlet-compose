@@ -3,9 +3,7 @@
 from utils import resolve_compose_path, parse_compose
 
 
-def compose_port(
-    compose_file: str | None = None, service: str | None = None, **_kwargs
-) -> None:
+def compose_port(compose_file: str | None = None, **_kwargs) -> None:
     """Print the public port for a port binding.
 
     Parses the compose file's port mappings and displays them.
@@ -14,15 +12,8 @@ def compose_port(
     compose_data = parse_compose(compose_path)
     services = compose_data["services"]
 
-    if service:
-        if service not in services:
-            raise ValueError(f"Service '{service}' not found in compose file.")
-        targets = {service: services[service]}
-    else:
-        targets = services
-
     found = False
-    for svc_name, config in targets.items():
+    for svc_name, config in services.items():
         if not isinstance(config, dict):
             continue
         ports = config.get("ports", [])

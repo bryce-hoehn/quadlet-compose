@@ -3,9 +3,7 @@
 from utils import resolve_compose_path, parse_compose, get_build_services, run_cmd
 
 
-def compose_build(
-    compose_file: str | None = None, service: str | None = None, **_kwargs
-) -> None:
+def compose_build(compose_file: str | None = None, **_kwargs) -> None:
     """Build images for services that define a build context in the compose file.
 
     Uses `podman build` for each service with a build context.
@@ -17,12 +15,6 @@ def compose_build(
     if not services:
         print("No services with build contexts found.")
         return
-
-    # Filter to a specific service if requested
-    if service:
-        if service not in services:
-            raise ValueError(f"Service '{service}' does not have a build context.")
-        services = {service: services[service]}
 
     for svc_name, build_ctx in services.items():
         context = build_ctx.get("context", ".")

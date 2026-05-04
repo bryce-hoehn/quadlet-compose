@@ -4,9 +4,7 @@ from utils import resolve_compose_path, parse_compose, get_image_services, run_c
 from utils.progress import run_with_progress
 
 
-def compose_pull(
-    compose_file: str | None = None, service: str | None = None, **_kwargs
-) -> None:
+def compose_pull(compose_file: str | None = None, **_kwargs) -> None:
     """Pull container images for services defined in the compose file.
 
     Uses `podman pull` for each service that specifies an image.
@@ -17,12 +15,6 @@ def compose_pull(
 
     if not services:
         return
-
-    # Filter to a specific service if requested
-    if service:
-        if service not in services:
-            raise ValueError(f"Service '{service}' not found in compose file.")
-        services = {service: services[service]}
 
     targets = list(services.keys())
     images = services  # name -> image ref
