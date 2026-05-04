@@ -1,0 +1,190 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: "Version bump type"
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  # ------------------------------------------------------------------ #
+  # 1. Compute new version, bump files, update flake.lock, commit, tag #
+  # ------------------------------------------------------------------ #
+  prepare:
+    name: Bump version & tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Compute new version
+        id: compute_version
+        run: |
+          # Read current version from pyproject.toml
+          CURRENT=$(grep -oP '^version = "\K[^"]+' pyproject.toml)
+          echo "Current version: $CURRENT"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          case "${{ inputs.version_bump }}" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+            *) echo "Error: unknown bump type '${{ inputs.version_bump }}'"; exit 1 ;;
+          esac
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "New version: $NEW_VERSION"
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Bump version in pyproject.toml
+        run: |
+          sed -i "s/^version = \".*\"/version = \"${{ steps.compute_version.outputs.version }}\"/" pyproject.toml
+          grep -q "version = \"${{ steps.compute_version.outputs.version }}\"" pyproject.toml \
+            || { echo "Failed to bump pyproject.toml"; exit 1; }
+
+      - name: Bump version in flake.nix
+        run: |
+          sed -i "s/version = \".*\";/version = \"${{ steps.compute_version.outputs.version }}\";/" flake.nix
+          grep -q "version = \"${{ steps.compute_version.outputs.version }}\"" flake.nix \
+            || { echo "Failed to bump flake.nix"; exit 1; }
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixpkgs-unstable
+
+      - name: Update flake.lock
+        run: nix flake lock --update-input nixpkgs
+
+      - name: Commit and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml flake.nix flake.lock
+          git commit -m "chore: release v${{ steps.compute_version.outputs.version }}"
+          git tag -a "v${{ steps.compute_version.outputs.version }}" -m "Release v${{ steps.compute_version.outputs.version }}"
+          git push
+          git push --tags
+
+  # ------------------------------------------------------------------ #
+  # 2. Build PyInstaller binaries (Linux arm64 & amd64)                #
+  # ------------------------------------------------------------------ #
+  build-binary:
+    name: Build Linux ${{ matrix.arch }} binary
+    runs-on: ${{ matrix.runner }}
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: "v${{ needs.prepare.outputs.version }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: pyinstaller --onefile --clean podlet_compose.py
+
+      - name: Rename binary
+        run: |
+          mv dist/podlet_compose dist/podlet-compose-linux-${{ matrix.arch }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: podlet-compose-linux-${{ matrix.arch }}
+          path: dist/podlet-compose-linux-${{ matrix.arch }}
+
+  # ------------------------------------------------------------------ #
+  # 3. Build sdist/wheel and publish to PyPI                           #
+  # ------------------------------------------------------------------ #
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: prepare
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: "v${{ needs.prepare.outputs.version }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  # ------------------------------------------------------------------ #
+  # 4. Create GitHub Release with all artifacts                        #
+  # ------------------------------------------------------------------ #
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-binary, publish-pypi]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: "v${{ needs.prepare.outputs.version }}"
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release-assets/
+          merge-multiple: true
+
+      - name: Create source archive
+        run: |
+          git archive --format=zip --prefix="podlet-compose-${{ needs.prepare.outputs.version }}/" \
+            "v${{ needs.prepare.outputs.version }}" \
+            -o release-assets/podlet-compose-${{ needs.prepare.outputs.version }}-source.zip
+
+      - name: Generate checksums
+        run: |
+          cd release-assets
+          sha256sum * > checksums-sha256.txt
+
+      - name: List release assets
+        run: ls -la release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: "v${{ needs.prepare.outputs.version }}"
+          name: "v${{ needs.prepare.outputs.version }}"
+          generate_release_notes: true
+          files: release-assets/*
