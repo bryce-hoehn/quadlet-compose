@@ -14,6 +14,7 @@
         pythonDeps = with pkgs.python312Packages; [
           pyyaml
           rich
+          ruamel-yaml
         ];
 
         runtimeDeps = with pkgs; [
