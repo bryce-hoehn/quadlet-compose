@@ -55,7 +55,7 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
 
       - name: Install podlet
-        run: cargo binstall podlet --yes
+        run: cargo binstall podlet
 
       - name: Install dependencies
         run: |
