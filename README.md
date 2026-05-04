@@ -79,21 +79,21 @@ Options:
   -p, --project-name   Specify an alternate project name
 
 Commands:
-  up              Create and start containers
-  down            Stop and remove containers
-  restart         Restart service containers
-  start           Start services
-  stop            Stop services
-  build           Build or rebuild services
-  pull            Pull service images
-  ps              List containers
-  logs            View output from containers
-  top             Display running processes
-  images          List images
-  port            Print the public port for a port binding
-  config          Validate and view compose config
-  convert         Preview quadlet files
-  version         Show version information
+  up                   Create and start containers
+  down                 Stop and remove containers
+  restart              Restart service containers
+  start                Start services
+  stop                 Stop services
+  build                Build or rebuild services
+  pull                 Pull service images
+  ps                   List containers
+  logs                 View output from containers
+  top                  Display running processes
+  images               List images
+  port                 Print the public port for a port binding
+  config               Validate and view compose config
+  convert              Preview quadlet files
+  version              Show version information
 ```
 
 ## Requirements
