@@ -54,28 +54,43 @@ def _interpolate(text: str, variables: dict[str, str]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _strip_image_tags_with_digests(data: dict) -> None:
-    """Strip image tags when a digest is also present.
-
-    Podlet rejects ``image: foo:v1@sha256:abc``.  This converts it to
-    ``image: foo@sha256:abc`` (keep digest, drop tag).
-    """
+def _iter_services(data: dict):
+    """Yield ``(name, service_dict)`` for each valid service entry."""
     services = data.get("services")
     if not services:
         return
-    for svc in services.values():
-        if not isinstance(svc, dict):
-            continue
+    for name, svc in services.items():
+        if isinstance(svc, dict):
+            yield name, svc
+
+
+def _normalize_service_fields(data: dict) -> None:
+    """Apply per-service field normalizations that podlet cannot handle.
+
+    - Strip image tags when a digest is also present
+      (``image:foo:v1@sha256:abc`` → ``image:foo@sha256:abc``).
+    - Strip ``hostname`` and ``network_mode``
+      (incompatible with shared pod UTS/network namespaces).
+    - Flatten long-form ``depends_on`` with conditions to short-form list
+      (podlet cannot translate ``condition: service_healthy`` to systemd).
+    """
+    for _name, svc in _iter_services(data):
+        # Strip image tag when digest is present
         image = svc.get("image")
         if isinstance(image, str) and "@" in image and ":" in image.split("@")[0]:
-            # image has both tag and digest: strip the tag
-            name_digest = image.split(":")
-            # Rejoin everything except the tag before @
-            # e.g. "ghcr.io/immich/immich:v1.2.3@sha256:abc" → "ghcr.io/immich/immich@sha256:abc"
             at_idx = image.index("@")
-            last_colon_before_at = image.rfind(":", 0, at_idx)
-            if last_colon_before_at > 0:
-                svc["image"] = image[:last_colon_before_at] + image[at_idx:]
+            last_colon = image.rfind(":", 0, at_idx)
+            if last_colon > 0:
+                svc["image"] = image[:last_colon] + image[at_idx:]
+
+        # Strip pod-incompatible fields
+        for key in ("hostname", "network_mode"):
+            svc.pop(key, None)
+
+        # Flatten depends_on
+        dep = svc.get("depends_on")
+        if isinstance(dep, dict):
+            svc["depends_on"] = list(dep.keys())
 
 
 def _expand_single_values(data: dict) -> None:
@@ -83,24 +98,17 @@ def _expand_single_values(data: dict) -> None:
 
     Docker-compose allows short forms like ``devices: ["/dev/dri"]`` or
     ``ports: ["8080"]``.  Podlet requires the full ``host:container`` form.
-    This expands:
-    - ``devices: ["/dev/dri"]`` → ``devices: ["/dev/dri:/dev/dri"]``
-    - ``ports: ["8080"]`` → ``ports: ["8080:8080"]``
-    - ``volumes: ["./config"]`` → ``volumes: ["./config:/config"]`` (path-like)
-    Named volumes (no ``/`` or ``.`` prefix) are left as-is.
     """
-    services = data.get("services")
-    if not services:
-        return
-    for svc in services.values():
-        if not isinstance(svc, dict):
-            continue
-
-        # Expand devices
-        _expand_list(svc, "devices", colon_expand=True)
-
-        # Expand ports
-        _expand_list(svc, "ports", colon_expand=True)
+    for _name, svc in _iter_services(data):
+        # Expand devices and ports (simple colon duplication)
+        for key in ("devices", "ports"):
+            items = svc.get(key)
+            if not isinstance(items, list):
+                continue
+            svc[key] = [
+                f"{item}:{item}" if isinstance(item, str) and ":" not in item else item
+                for item in items
+            ]
 
         # Expand volumes (only path-like single values)
         vols = svc.get("volumes")
@@ -118,44 +126,57 @@ def _expand_single_values(data: dict) -> None:
             svc["volumes"] = new_vols
 
 
-def _expand_list(svc: dict, key: str, *, colon_expand: bool) -> None:
-    """Expand single-value entries in a service list by duplicating the value."""
-    items = svc.get(key)
-    if not isinstance(items, list):
-        return
-    new_items = []
-    for item in items:
-        if isinstance(item, str) and ":" not in item:
-            new_items.append(f"{item}:{item}")
-        else:
-            new_items.append(item)
-    svc[key] = new_items
-
-
 def _strip_extensions(data: dict) -> None:
     """Remove all top-level ``x-*`` extension keys from the compose data.
 
     Podlet does not support compose extensions (e.g. ``x-custom``, ``x-env``).
     """
-    keys_to_remove = [k for k in data if isinstance(k, str) and k.startswith("x-")]
-    for k in keys_to_remove:
+    for k in [k for k in data if isinstance(k, str) and k.startswith("x-")]:
         del data[k]
 
 
-def _inject_build_tags(data: dict) -> None:
-    """Inject a default image tag for services with ``build:`` but no ``image:``.
+def _build_services(data: dict, compose_dir: Path) -> None:
+    """Build images for services with ``build:`` and replace with ``image:``.
 
-    Podlet requires an image tag when converting ``build:`` to a quadlet
-    ``.build`` file.  This adds ``image: {service_name}:latest`` when missing.
+    Podlet does not support ``build:`` in compose files.  This function
+    runs ``podman build`` for each service that defines a build context,
+    then replaces ``build:`` with the resulting ``image:`` tag so podlet
+    can process the service as a normal image-based container.
     """
-    services = data.get("services")
-    if not services:
-        return
-    for svc_name, svc in services.items():
-        if not isinstance(svc, dict):
+    from .utils import run_cmd
+
+    for svc_name, svc in _iter_services(data):
+        build = svc.get("build")
+        if not build:
             continue
-        if "build" in svc and "image" not in svc:
-            svc["image"] = f"{svc_name}:latest"
+
+        # Resolve build context
+        if isinstance(build, str):
+            context = build
+            dockerfile = None
+            tags = None
+        elif isinstance(build, dict):
+            context = build.get("context", ".")
+            dockerfile = build.get("dockerfile")
+            tags = build.get("tags")
+        else:
+            continue
+
+        # Determine image tag
+        tag = tags[0] if tags else f"{svc_name}:latest"
+
+        # Build the image
+        cmd = ["podman", "build", "-t", tag]
+        if dockerfile:
+            cmd += ["-f", str(compose_dir / dockerfile)]
+        cmd.append(str(compose_dir / context))
+
+        print(f"Building image for '{svc_name}' ...")
+        run_cmd(cmd)
+
+        # Replace build: with image: in the compose data
+        del svc["build"]
+        svc["image"] = tag
 
 
 # ---------------------------------------------------------------------------
@@ -187,10 +208,12 @@ def prepare_compose(compose_path: Path) -> Path:
 
     1. Variable interpolation (``$VAR`` / ``${VAR}``) from ``.env`` and
        environment — unresolved vars become empty strings.
-    2. Strip image tags when a digest is also present.
+    2. Normalize service fields — strip image tags with digests,
+       remove pod-incompatible fields (``hostname``, ``network_mode``),
+       flatten long-form ``depends_on`` with conditions.
     3. Auto-expand single-value devices, ports, and path-like volumes.
     4. Remove ``x-*`` compose extension keys.
-    5. Inject ``image:`` for services with ``build:`` but no image tag.
+    5. Build images for ``build:`` services and replace with ``image:``.
     6. Inject ``name:`` from parent directory if missing.
     """
     raw = compose_path.read_text(encoding="utf-8")
@@ -208,10 +231,10 @@ def prepare_compose(compose_path: Path) -> Path:
         data = {}
 
     # Apply podlet workarounds
-    _strip_image_tags_with_digests(data)
+    _normalize_service_fields(data)
     _expand_single_values(data)
     _strip_extensions(data)
-    _inject_build_tags(data)
+    _build_services(data, compose_path.parent.resolve())
 
     # Inject name from parent directory if missing
     if "name" not in data:
