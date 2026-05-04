@@ -23,17 +23,6 @@ chmod +x podlet-compose
 sudo mv podlet-compose ~/.local/bin/
 ```
 
-## Nix
-
-To use in a NixOS or home-manager config, add the flake input and reference the package:
-
-```nix
-inputs.podlet-compose.url = "github:bryce-hoehn/podlet-compose";
-
-# In your system/home config:
-environment.systemPackages = [ inputs.podlet-compose.packages.${system}.default ];
-```
-
 ## Installing as a podman compose provider
 
 podlet-compose can be registered as a [compose provider](https://docs.podman.io/en/latest/markdown/podman-compose.1.html) for `podman compose`, so that `podman compose up` uses podlet-compose instead of docker-compose or podman-compose.
@@ -51,4 +40,62 @@ You can also set the provider via the `PODMAN_COMPOSE_PROVIDER` environment vari
 ```bash
 export PODMAN_COMPOSE_PROVIDER=podlet-compose
 podman compose up
+```
+
+
+## Nix
+
+To use in a NixOS config, add the flake input and reference the package. Example:
+
+```nix
+{
+  description = "Podlet-compose NixOS Configuration";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    podlet-compose.url = "github:bryce-hoehn/podlet-compose";
+  };
+
+  outputs = {
+    self, 
+    nixpkgs,
+    podlet-compose,
+    ...   
+  }@inputs: {
+    nixosConfigurations = {
+      my_hosename = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ./configuration.nix
+          ({ pkgs, ... }: {
+            environment.systemPackages = [ podlet-compose.packages.${pkgs.system}.default ];
+          })
+        ];
+      };
+    };
+  };
+}
+```
+
+### Podman
+```nix
+  virtualisation.podman = {
+    enable = true;
+    dockerCompat = true; # optional, aliases docker -> podman
+    dockerSocket.enable = false; # optional, defaults to false
+    defaultNetwork.settings.dns_enabled = true; # i forget
+  };
+```
+
+### Compose Provider
+```nix
+  virtualisation.containers.containersConf.settings = {
+    containers = {
+      userns = "keep-id"; # probably optional?
+    };
+    engine = {
+      compose_providers = ["podlet-compose"]; # set podlet-compose as podman compose provider
+      compose_warning_logs = false; # disables annoying podman compose warning
+    };
+  };
 ```
