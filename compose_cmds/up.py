@@ -59,20 +59,36 @@ def compose_up(
     print("Reloading systemd daemon ...")
     run_cmd(["systemctl", "--user", "daemon-reload"])
 
-    # Start the appropriate service target
+    # Start the appropriate service targets
     if kube:
-        target = project
+        targets = [project]
     else:
-        target = f"{project}-pod"
-    print(f"Starting {target} ...")
-    run_cmd(["systemctl", "--user", "start", target])
+        # In pod mode, start the pod first, then each container service.
+        # The pod service only creates the infra container; individual
+        # .container units must be started separately.
+        targets = [f"{project}-pod"] + [
+            f"{project}-{svc}" for svc in compose_data["service_names"]
+        ]
+
+    for target in targets:
+        print(f"Starting {target} ...")
+        run_cmd(["systemctl", "--user", "start", target])
 
     if detach:
         print("Done.")
     else:
-        # Follow logs in attached mode (Ctrl+C to stop)
-        print(f"Following logs for {target} (Ctrl+C to stop) ...")
+        # Follow container logs via podman (Ctrl+C to stop)
+        print("Following logs (Ctrl+C to stop) ...")
+        # In pod mode, container names are systemd-{project}-{service}
+        # In kube mode, use the pod name
+        if kube:
+            container_names = [f"systemd-{project}"]
+        else:
+            container_names = [
+                f"systemd-{project}-{svc}" for svc in compose_data["service_names"]
+            ]
+        podman_args = ["podman", "logs", "-f"] + container_names
         try:
-            subprocess.run(["journalctl", "--user", "-u", target, "-f"])
+            subprocess.run(podman_args)
         except KeyboardInterrupt:
             print("\nDetached from logs. Services are still running.")
