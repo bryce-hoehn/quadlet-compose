@@ -37,20 +37,26 @@ def compose_down(
 
     run_with_progress(targets, stop_target, "Stopped")
 
-    # Disable autostart
-    run_cmd(["systemctl", "--user", "disable", *targets], quiet=True)
+    # Disable autostart — include individual container services that may
+    # have been enabled for autostart (up.py enables per-service, but
+    # get_service_targets() only returns the pod/kube target).
+    disable_targets = list(targets)
+    if (unit_dir / f"{project}.pod").exists():
+        disable_targets += [f"{project}-{svc}" for svc in service_names]
+    run_cmd(["systemctl", "--user", "disable", *disable_targets], quiet=True)
 
     if remove_files:
         # Remove quadlet files derived from the compose file
         files_to_remove = []
 
         for svc in service_names:
-            # In pod/kube mode, files are named {project}-{service}.container
-            for pattern in (f"{project}-{svc}.container", f"{svc}.container"):
-                f = unit_dir / pattern
-                if f.exists():
-                    files_to_remove.append(f)
-                    break
+            # In pod/kube mode, files are named {project}-{service}.{ext}
+            for ext in (".container", ".build"):
+                for pattern in (f"{project}-{svc}{ext}", f"{svc}{ext}"):
+                    f = unit_dir / pattern
+                    if f.exists():
+                        files_to_remove.append(f)
+                        break
 
         for vol in volume_names:
             f = unit_dir / f"{vol}.volume"

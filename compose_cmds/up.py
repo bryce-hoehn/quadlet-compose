@@ -92,6 +92,7 @@ def compose_up(
         "podlet",
         "--unit-directory",
         "--overwrite",
+        "--skip-services-check",
         "--install",
         "--wanted-by",
         "default.target",
@@ -117,12 +118,10 @@ def compose_up(
     if kube:
         targets = [project]
     else:
-        # In pod mode, start the pod first, then each container service.
-        # The pod service only creates the infra container; individual
-        # .container units must be started separately.
-        targets = [f"{project}-pod"] + [
-            f"{project}-{svc}" for svc in compose_data["service_names"]
-        ]
+        # In pod mode, starting the pod automatically starts all containers
+        # via Quadlet's StartWithPod=true (default). No need to start
+        # individual container units separately.
+        targets = [f"{project}-pod"]
 
     # Enable autostart for services with a non-"no" restart policy.
     # All units already have [Install] sections from --install --wanted-by.
