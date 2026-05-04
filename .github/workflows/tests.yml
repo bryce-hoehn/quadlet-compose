@@ -51,10 +51,11 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
+
       - name: Install podlet
-        run: |
-          cargo install podlet
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        run: cargo binstall podlet --yes
 
       - name: Install dependencies
         run: |
