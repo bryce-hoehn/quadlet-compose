@@ -85,10 +85,12 @@ def compose_up(
     # Pass the original compose directory to --absolute-host-paths so
     # relative paths resolve correctly (not from the temp file's location).
     compose_dir = str(compose_path.parent.resolve())
-    unit_dir = get_unit_directory()
+
+    # ensure directory gets created
+    get_unit_directory()
     cmd = [
         "podlet",
-        f"--unit-directory={unit_dir}",
+        "--unit-directory",
         "--overwrite",
         f"--absolute-host-paths={compose_dir}",
         "compose",
