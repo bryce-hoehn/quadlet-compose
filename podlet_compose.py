@@ -74,8 +74,7 @@ COMMANDS = [
         "args": [
             ("--kube", {"action": "store_true", "default": False}),
             (
-                "-d",
-                "--detach",
+                ("-d", "--detach"),
                 {
                     "action": "store_true",
                     "default": False,
@@ -151,8 +150,11 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command")
     for cmd in COMMANDS:
         p = subparsers.add_parser(cmd["name"])
-        for arg_name, arg_kwargs in cmd.get("args", []):
-            p.add_argument(arg_name, **arg_kwargs)
+        for arg_names, arg_kwargs in cmd.get("args", []):
+            if isinstance(arg_names, str):
+                p.add_argument(arg_names, **arg_kwargs)
+            else:
+                p.add_argument(*arg_names, **arg_kwargs)
         p.set_defaults(func=cmd["func"])
 
     args = parser.parse_args()
