@@ -1,14 +1,18 @@
 # Installation
 
-## Pip
+### Install the latest release version from PyPi (recommended):
 
-Install the latest development version from GitHub:
+```bash
+pip install podlet-compose
+```
+
+### Install the latest development version from GitHub:
 
 ```bash
 pip3 install https://github.com/bryce-hoehn/podlet-compose/archive/main.tar.gz
 ```
 
-## Standalone Binary (PyInstaller)
+### Standalone Binary (PyInstaller)
 
 Generate a standalone binary using Docker or Podman. This script downloads the repo, builds a static binary using [PyInstaller](https://pyinstaller.org/) via [the Dockerfile](https://github.com/bryce-hoehn/podlet-compose/blob/main/Dockerfile), and places it in the current directory:
 
@@ -23,7 +27,7 @@ chmod +x podlet-compose
 sudo mv podlet-compose ~/.local/bin/
 ```
 
-## Installing as a podman compose provider
+# Installing as a podman compose provider
 
 podlet-compose can be registered as a [compose provider](https://docs.podman.io/en/latest/markdown/podman-compose.1.html) for `podman compose`, so that `podman compose up` uses podlet-compose instead of docker-compose or podman-compose.
 
@@ -43,7 +47,9 @@ podman compose up
 ```
 
 
-## Nix
+# Nix
+
+### Flake
 
 To use in a NixOS config, add the flake input and reference the package. Example:
 
