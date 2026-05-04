@@ -1,0 +1,17 @@
+name: networks-test
+
+services:
+  web:
+    image: docker.io/library/nginx:alpine
+    networks:
+      - frontend
+
+  app:
+    image: docker.io/library/nginx:alpine
+    networks:
+      - frontend
+      - backend
+
+networks:
+  frontend:
+  backend:

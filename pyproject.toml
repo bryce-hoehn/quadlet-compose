@@ -14,9 +14,19 @@ dependencies = [
     "ruamel.yaml",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [project.scripts]
 podlet-compose = "podlet_compose:main"
 
 [tool.setuptools]
 py-modules = ["podlet_compose"]
 packages = ["compose_cmds", "utils"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "integration: marks tests that require podman, podlet, and systemd (deselect with '-m \"not integration\"')",
+]
