@@ -78,6 +78,7 @@ To use in a NixOS config, add the flake input and reference the package. Example
 ```
 
 ### Podman
+
 ```nix
   virtualisation.podman = {
     enable = true;
@@ -88,6 +89,9 @@ To use in a NixOS config, add the flake input and reference the package. Example
 ```
 
 ### Compose Provider
+
+Make podlet-compose the default podman compose provider.
+
 ```nix
   virtualisation.containers.containersConf.settings = {
     containers = {
@@ -97,5 +101,19 @@ To use in a NixOS config, add the flake input and reference the package. Example
       compose_providers = ["podlet-compose"]; # set podlet-compose as podman compose provider
       compose_warning_logs = false; # disables annoying podman compose warning
     };
+  };
+```
+
+### Linger
+
+Required for autostarting services.
+
+```nix
+  users.users.bryce = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" "podman" ];
+    shell = pkgs.fish; # unrelated but fish is great
+    linger = true; # <---
+    autoSubUidGidRange = true; # i forget what this does
   };
 ```
