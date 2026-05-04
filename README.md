@@ -50,6 +50,7 @@ Commands:
 - Python 3.10+
 - [PyYAML](https://pypi.org/project/PyYAML/)
 - [rich](https://pypi.org/project/rich/)
+- [ruamel.yaml](https://pypi.org/project/ruamel.yaml/)
 
 ## Documentation
 
