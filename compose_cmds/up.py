@@ -122,19 +122,20 @@ def compose_up(
         ]
 
     # Enable autostart for services with a non-"no" restart policy
-    # (mirrors Docker's behavior: restart: always/unless-stopped/on-failure
-    # causes containers to start on daemon boot)
+    # Uses add-wants instead of enable because quadlet-generated units
+    # lack [Install] sections and are marked as "transient/generated".
     _AUTOSTART_POLICIES = {"always", "unless-stopped", "on-failure"}
-    enable_targets: list[str] = []
     if not kube:
         for svc_name, svc_config in compose_data["services"].items():
             if not isinstance(svc_config, dict):
                 continue
             restart = svc_config.get("restart", "no")
             if restart in _AUTOSTART_POLICIES:
-                enable_targets.append(f"{project}-{svc_name}")
-    if enable_targets:
-        run_cmd(["systemctl", "--user", "enable", *enable_targets], quiet=True)
+                target = f"{project}-{svc_name}"
+                run_cmd(
+                    ["systemctl", "--user", "add-wants", "default.target", target],
+                    quiet=True,
+                )
 
     # Start targets with live progress display
     def start_target(target):

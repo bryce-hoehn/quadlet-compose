@@ -37,8 +37,12 @@ def compose_down(
 
     run_with_progress(targets, stop_target, "Stopped")
 
-    # Disable autostart
-    run_cmd(["systemctl", "--user", "disable", *targets], quiet=True)
+    # Remove autostart (matches add-wants in up command)
+    for target in targets:
+        run_cmd(
+            ["systemctl", "--user", "remove-wants", "default.target", target],
+            quiet=True,
+        )
 
     if remove_files:
         # Remove quadlet files derived from the compose file
