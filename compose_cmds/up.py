@@ -65,11 +65,14 @@ def compose_up(
 
     # Build podlet command with docker-compose-compatible defaults
     # podlet options and must precede the "compose" subcommand.
+    # Pass the original compose directory to --absolute-host-paths so
+    # relative paths resolve correctly (not from the temp file's location).
+    compose_dir = str(compose_path.parent.resolve())
     cmd = [
         "podlet",
         "--unit-directory",
         "--overwrite",
-        "--absolute-host-paths",
+        f"--absolute-host-paths={compose_dir}",
         "compose",
     ]
     if kube:

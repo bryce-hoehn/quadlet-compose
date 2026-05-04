@@ -19,10 +19,13 @@ def compose_convert(
     # Build the same command as up, but without --unit-directory.
     # Note: --overwrite and --absolute-host-paths are global podlet
     # options and must precede the "compose" subcommand.
+    # Pass the original compose directory to --absolute-host-paths so
+    # relative paths resolve correctly (not from the temp file's location).
+    compose_dir = str(compose_path.parent.resolve())
     cmd = [
         "podlet",
         "--overwrite",
-        "--absolute-host-paths",
+        f"--absolute-host-paths={compose_dir}",
         "compose",
     ]
     if kube:
