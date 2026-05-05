@@ -41,10 +41,10 @@ class TestConfigCommand:
         assert "name: test-compose" in result.stdout
 
     def test_config_shows_service_names(self):
-        compose_file = str(FIXTURES / "up_down" / "compose.yaml")
+        compose_file = str(FIXTURES / "networks" / "compose.yaml")
         result = _run(["python", PODLET_COMPOSE, "-f", compose_file, "config"])
         assert "web" in result.stdout
-        assert "db" in result.stdout
+        assert "app" in result.stdout
 
     def test_config_shows_volumes(self):
         compose_file = str(FIXTURES / "volumes" / "compose.yaml")
