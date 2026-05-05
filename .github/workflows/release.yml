@@ -156,7 +156,7 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-binary, publish-pypi]
+    needs: [prepare, build-binary, publish-pypi]
     steps:
       - uses: actions/checkout@v6
         with:
