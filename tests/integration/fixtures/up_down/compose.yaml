@@ -5,8 +5,6 @@ services:
     image: docker.io/library/nginx:alpine
     ports:
       - "58080:80"
-    volumes:
-      - ./html:/usr/share/nginx/html:ro
 
   db:
     image: docker.io/library/redis:alpine
