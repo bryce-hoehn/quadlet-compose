@@ -4,11 +4,11 @@ services:
   web:
     image: docker.io/library/nginx:alpine
     ports:
-      - "8080:80"
+      - "58080:80"
     volumes:
       - ./html:/usr/share/nginx/html:ro
 
   db:
     image: docker.io/library/redis:alpine
     ports:
-      - "6379:6379"
+      - "56379:6379"
