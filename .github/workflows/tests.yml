@@ -58,16 +58,15 @@ jobs:
 
       - name: Set up Quadlet systemd generator
         run: |
-          mkdir -p ~/.config/systemd/user-generators/
-          # Resolve podman from the dev shell (uses flake.lock's pinned nixpkgs),
-          # then derive the generator path from the binary's store path.
-          # Note: the Nix podman package names it podman-user-generator, not podman-system-generator.
+          # Ubuntu ships an outdated podman-user-generator at /usr/lib/systemd/user-generators/.
+          # Replace it with the one from the Nix dev shell (which matches our podman version).
+          # systemd only searches system-level paths for generators, not user home dirs.
           nix develop -c bash -c '
             PODMAN_BIN="$(command -v podman)"
             PODMAN_STORE="${PODMAN_BIN%/bin/podman}"
             GENERATOR="${PODMAN_STORE}/lib/systemd/user-generators/podman-user-generator"
             if [ -x "$GENERATOR" ]; then
-              ln -sf "$GENERATOR" ~/.config/systemd/user-generators/podman-user-generator
+              sudo ln -sf "$GENERATOR" /usr/lib/systemd/user-generators/podman-user-generator
               echo "Linked generator: $GENERATOR"
             else
               echo "WARNING: podman-user-generator not found at $GENERATOR"
