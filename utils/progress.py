@@ -48,12 +48,14 @@ def run_with_progress(
     error_details: list[str] = []
     spinner_cycle = itertools.cycle(_SPINNERS)
     current_target: list[str | None] = [None]
+    start_times: dict[str, float] = {}
 
     def worker():
         for target in targets:
             with lock:
                 current_target[0] = target
-            t0 = time.monotonic()
+                start_times[target] = time.monotonic()
+            t0 = start_times[target]
             try:
                 action_fn(target)
                 elapsed = time.monotonic() - t0
@@ -73,20 +75,39 @@ def run_with_progress(
     fps = 15
     with Live(refresh_per_second=fps, vertical_overflow="visible") as live:
         while thread.is_alive():
+            now = time.monotonic()
             live.update(
                 _build_frame(
-                    targets, results, next(spinner_cycle), action_label, _label
+                    targets,
+                    results,
+                    next(spinner_cycle),
+                    action_label,
+                    _label,
+                    start_times,
+                    now,
                 )
             )
             thread.join(timeout=1 / fps)
         # Final frame
-        live.update(_build_frame(targets, results, " ", action_label, _label))
+        live.update(
+            _build_frame(
+                targets,
+                results,
+                " ",
+                action_label,
+                _label,
+                start_times,
+                time.monotonic(),
+            )
+        )
 
     if error_details:
         raise ComposeError("\n".join(error_details))
 
 
-def _build_frame(targets, results, spinner, action_label, label_fn) -> Text:
+def _build_frame(
+    targets, results, spinner, action_label, label_fn, start_times, now
+) -> Text:
     """Build one frame of the progress display as a single styled Text."""
     term_width = shutil.get_terminal_size().columns
     total = len(targets)
@@ -102,7 +123,6 @@ def _build_frame(targets, results, spinner, action_label, label_fn) -> Text:
             line_start = f" ✔ {kind} {name} "
             line_end = f" {t}"
             status_word = action_label
-            # Calculate padding to right-align the timer
             visible_len = len(line_start) + len(status_word) + len(line_end)
             padding = max(1, term_width - visible_len - 1)
             if status == "ok":
@@ -116,6 +136,16 @@ def _build_frame(targets, results, spinner, action_label, label_fn) -> Text:
                 frame.append(" " * padding)
                 frame.append(f"{t}\n")
         else:
-            frame.append(f" {spinner} {kind} {name}\n")
+            line_start = f" {spinner} {kind} {name}"
+            t0 = start_times.get(target)
+            if t0 is not None:
+                elapsed = now - t0
+                t = f" {elapsed:.1f}s"
+                padding = max(1, term_width - len(line_start) - len(t) - 1)
+                frame.append(line_start)
+                frame.append(" " * padding)
+                frame.append(f"{t}\n")
+            else:
+                frame.append(f"{line_start}\n")
 
     return frame
