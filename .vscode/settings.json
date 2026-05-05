@@ -1,0 +1,12 @@
+{
+  "editor.tabSize": 4,
+  "dev.containers.dockerPath": "podman",
+  "containers.containerClient": "com.microsoft.visualstudio.containers.podman",
+  "containers.orchestratorClient": "com.microsoft.visualstudio.orchestrators.podmancompose",
+  "editor.formatOnSave": true,
+  "python.analysis.typeCheckingMode": "basic",
+  "editor.defaultFormatter": "ms-python.black-formatter", 
+  "containers.environment": {
+    "DOCKER_HOST": "unix:///run/user/1000/podman/podman.sock"
+  }
+}
