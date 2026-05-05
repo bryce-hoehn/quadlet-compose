@@ -62,7 +62,7 @@ jobs:
           # but systemd only looks in ~/.config/systemd/user-generators/ (and a few
           # system paths).  Symlink it so `systemctl --user daemon-reload` can find it.
           mkdir -p ~/.config/systemd/user-generators/
-          PODMAN_PATH="$(nix path-info nixpkgs#podman 2>/dev/null)"
+          PODMAN_PATH="$(nix build nixpkgs#podman --no-link --print-out-paths 2>/dev/null || true)"
           GENERATOR="${PODMAN_PATH:+$PODMAN_PATH/lib/systemd/user-generators/podman-system-generator}"
           if [ -n "$GENERATOR" ] && [ -x "$GENERATOR" ]; then
             ln -sf "$GENERATOR" ~/.config/systemd/user-generators/podman-system-generator
