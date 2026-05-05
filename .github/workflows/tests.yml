@@ -61,15 +61,16 @@ jobs:
           mkdir -p ~/.config/systemd/user-generators/
           # Resolve podman from the dev shell (uses flake.lock's pinned nixpkgs),
           # then derive the generator path from the binary's store path.
+          # Note: the Nix podman package names it podman-user-generator, not podman-system-generator.
           nix develop -c bash -c '
             PODMAN_BIN="$(command -v podman)"
             PODMAN_STORE="${PODMAN_BIN%/bin/podman}"
-            GENERATOR="${PODMAN_STORE}/lib/systemd/user-generators/podman-system-generator"
+            GENERATOR="${PODMAN_STORE}/lib/systemd/user-generators/podman-user-generator"
             if [ -x "$GENERATOR" ]; then
-              ln -sf "$GENERATOR" ~/.config/systemd/user-generators/podman-system-generator
+              ln -sf "$GENERATOR" ~/.config/systemd/user-generators/podman-user-generator
               echo "Linked generator: $GENERATOR"
             else
-              echo "WARNING: podman-system-generator not found at $GENERATOR"
+              echo "WARNING: podman-user-generator not found at $GENERATOR"
             fi
           '
 
