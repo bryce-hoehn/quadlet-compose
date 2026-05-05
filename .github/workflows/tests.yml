@@ -24,9 +24,19 @@ jobs:
         run: nix develop -c pytest -v -m "not integration"
 
   integration-tests:
-    name: Integration Tests
+    name: ${{ matrix.name }}
     runs-on: ubuntu-24.04
     needs: unit-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Config
+            test: tests/integration/test_config.py
+          - name: Parse Errors
+            test: tests/integration/test_parse_error.py
+          - name: Up/Down
+            test: tests/integration/test_up_down.py
 
     steps:
       - uses: actions/checkout@v6
@@ -36,8 +46,6 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixpkgs-unstable
 
-      # Rootless podman requires setuid helpers from the system (newuidmap,
-      # newgidmap)
       - name: Install rootless podman helpers
         run: |
           sudo apt-get update
@@ -73,5 +81,5 @@ jobs:
             fi
           '
 
-      - name: Run integration tests
-        run: nix develop -c pytest -v -m integration --timeout=120
+      - name: Run tests
+        run: nix develop -c pytest -v -m integration ${{ matrix.test }} --timeout=120
