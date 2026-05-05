@@ -106,3 +106,20 @@ class TestUpDown:
         """podlet-compose up with empty services should not crash."""
         compose_file = str(FIXTURES / "empty_services" / "compose.yaml")
         _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
+
+    def test_up_creates_bind_mount_dirs(self):
+        """podlet-compose up should auto-create missing bind mount host directories."""
+        compose_file = str(FIXTURES / "bind_mounts" / "compose.yaml")
+        fixture_dir = FIXTURES / "bind_mounts"
+        html_dir = fixture_dir / "html"
+        try:
+            assert not html_dir.exists(), "html dir should not exist before test"
+            _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
+            assert html_dir.is_dir(), "_ensure_bind_mount_dirs should have created html dir"
+            time.sleep(5)
+            result = _run(["podman", "ps", "--format", "{{.Names}}"])
+            assert "bindmount-test-web" in result.stdout.strip()
+        finally:
+            _cleanup(compose_file)
+            if html_dir.exists():
+                html_dir.rmdir()
