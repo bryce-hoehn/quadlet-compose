@@ -144,9 +144,9 @@ def compose_up(
         # individual container units separately.
         targets = [f"{project}-pod"]
 
-    # Start targets with live progress display
+    # Start/restart targets with live progress display
     def start_target(target):
-        run_cmd(["systemctl", "--user", "start", target])
+        run_cmd(["systemctl", "--user", "restart", target])
 
     run_with_progress(targets, start_target, "Started")
 
