@@ -108,8 +108,7 @@ def compose_up(
     unit_dir = get_unit_directory()
     cmd = [
         "podlet",
-        "--unit-directory",
-        str(unit_dir),
+        f"--unit-directory={unit_dir}",
         "--overwrite",
         "--skip-services-check",
         # "--install",
