@@ -69,14 +69,14 @@ class TestUpDown:
             time.sleep(5)
 
             # Verify containers exist before down
-            _run(["podman", "container", "exists", "test-compose-web"])
+            _run(["podman", "container", "exists", "systemd-test-compose-web"])
 
             # Down
             _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "down"])
             time.sleep(3)
 
             # Verify containers are gone
-            _run(["podman", "container", "exists", "test-compose-web"], expected_rc=1)
+            _run(["podman", "container", "exists", "systemd-test-compose-web"], expected_rc=1)
         finally:
             _cleanup(self.compose_file)
 
