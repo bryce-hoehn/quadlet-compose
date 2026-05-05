@@ -12,7 +12,6 @@
         pkgs = nixpkgs.legacyPackages.${system};
 
         pythonDeps = with pkgs.python312Packages; [
-          pyyaml
           rich
           ruamel-yaml
         ];
@@ -24,7 +23,7 @@
 
         podlet-compose = pkgs.python312Packages.buildPythonApplication {
           pname = "podlet-compose";
-          version = "0.1.0";
+          version = "0.2.1";
           format = "pyproject";
 
           src = ./.;
@@ -65,6 +64,7 @@
             python312
             python312Packages.pip
             python312Packages.pytest
+            python312Packages.pytest-timeout
             podlet
             podman
           ] ++ pythonDeps;

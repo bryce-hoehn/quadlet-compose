@@ -1,0 +1,12 @@
+name: volumes-test
+
+services:
+  db:
+    image: docker.io/library/postgres:16-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: test
+
+volumes:
+  pgdata:

@@ -101,32 +101,16 @@ COMMANDS = [
             ),
         ],
     },
-    {
-        "name": "build",
-        "help": "Build or rebuild services",
-        "func": compose_build,
-        "args": [("service", {"nargs": "?", "default": None})],
-    },
-    {
-        "name": "pull",
-        "help": "Pull service images",
-        "func": compose_pull,
-        "args": [("service", {"nargs": "?", "default": None})],
-    },
+    {"name": "build", "help": "Build or rebuild services", "func": compose_build},
+    {"name": "pull", "help": "Pull service images", "func": compose_pull},
     {"name": "ps", "help": "List containers", "func": compose_ps},
-    {
-        "name": "logs",
-        "help": "View output from containers",
-        "func": compose_logs,
-        "args": [("service", {"nargs": "?", "default": None})],
-    },
+    {"name": "logs", "help": "View output from containers", "func": compose_logs},
     {"name": "top", "help": "Display running processes", "func": compose_top},
     {"name": "images", "help": "List images", "func": compose_images},
     {
         "name": "port",
         "help": "Print the public port for a port binding",
         "func": compose_port,
-        "args": [("service", {"nargs": "?", "default": None})],
     },
     {
         "name": "config",
@@ -181,7 +165,6 @@ def main() -> None:
     try:
         args.func(
             compose_file=args.compose_file,
-            service=getattr(args, "service", None),
             kube=getattr(args, "kube", False),
             detach=getattr(args, "detach", False),
         )

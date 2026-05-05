@@ -20,28 +20,47 @@ from utils.progress import run_with_progress
 _console = Console()
 
 
-def _ensure_bind_mount_dirs(compose_data: dict, compose_dir: Path) -> None:
-    """Create host directories for bind mounts that don't yet exist.
+def _is_bind_mount(source: str) -> bool:
+    """True if the source looks like a host path (not a named volume)."""
+    return source.startswith(".") or source.startswith("/")
 
-    Scans all service volumes and creates missing host paths.
-    Named volumes (without a path separator) are skipped.
+
+def _parse_volume_host_path(vol) -> str | None:
+    """Extract the host-side path from a volume entry, or None if not a bind mount.
+
+    Handles both short-form strings and long-form dicts per the Compose spec:
+
+      - ``"host:container[:mode]"``          → host path if bind mount
+      - ``{type: bind, source: ./data, …}``  → source
+      - ``{type: volume, source: data, …}``  → None (named volume)
     """
+    if isinstance(vol, str):
+        source = vol.split(":")[0]
+        return source if _is_bind_mount(source) else None
+
+    if isinstance(vol, dict):
+        vol_type = vol.get("type")
+        source = vol.get("source", "")
+        if vol_type == "bind":
+            return source
+        # Fallback: no explicit type but source looks like a path
+        if vol_type is None and _is_bind_mount(source):
+            return source
+        return None
+
+    return None
+
+
+def _ensure_bind_mount_dirs(compose_data: dict, compose_dir: Path) -> None:
+    """Create host directories for bind mounts that don't yet exist."""
     for svc_config in compose_data["services"].values():
         if not isinstance(svc_config, dict):
             continue
         for vol in svc_config.get("volumes", []):
-            # Volume can be a string ("host:container[:mode]") or a dict
-            host_spec = vol if isinstance(vol, str) else vol.get("source", "")
-            if not host_spec:
+            host_path_str = _parse_volume_host_path(vol)
+            if host_path_str is None:
                 continue
-            # Split on ':' — host path is the first part
-            parts = host_spec.split(":")
-            raw_host = parts[0]
-            # Skip named volumes (no path separator and doesn't start with . or /)
-            if "/" not in raw_host and not raw_host.startswith("."):
-                continue
-            # Resolve relative paths against the compose file directory
-            host_path = (compose_dir / raw_host).resolve()
+            host_path = (compose_dir / host_path_str).resolve()
             if not host_path.exists():
                 os.makedirs(host_path, exist_ok=True)
 

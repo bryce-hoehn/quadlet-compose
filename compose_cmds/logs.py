@@ -3,13 +3,10 @@
 from utils import resolve_compose_path, parse_compose, get_service_targets, run_cmd
 
 
-def compose_logs(
-    compose_file: str | None = None, service: str | None = None, **_kwargs
-) -> None:
+def compose_logs(compose_file: str | None = None, **_kwargs) -> None:
     """Show logs from services defined in the compose file.
 
-    If a specific service is given, show logs for that service only.
-    Otherwise, show logs for all services.
+    Shows logs for all services using journalctl.
     """
     compose_path = resolve_compose_path(compose_file)
     compose_data = parse_compose(compose_path)
@@ -19,12 +16,7 @@ def compose_logs(
         print("No services defined in compose file.")
         return
 
-    if service:
-        if service not in service_names:
-            raise ValueError(f"Service '{service}' not found in compose file.")
-        targets = [service]
-    else:
-        targets = get_service_targets(compose_data)
+    targets = get_service_targets(compose_data)
 
     # journalctl requires --unit per target
     cmd = ["journalctl", "--user"]

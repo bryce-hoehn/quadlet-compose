@@ -4,20 +4,29 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "podlet-compose"
-version = "0.1.0"
+version = "0.2.1"
 description = "A thin wrapper around podlet that acts as a drop-in for docker/podman-compose"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
-    "pyyaml",
     "rich",
     "ruamel.yaml",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-timeout"]
 
 [project.scripts]
 podlet-compose = "podlet_compose:main"
 
 [tool.setuptools]
 py-modules = ["podlet_compose"]
-packages = ["compose_cmds", "utils"]
+packages = ["compose_cmds", "hacks", "utils"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "integration: marks tests that require podman, podlet, and systemd (deselect with '-m \"not integration\"')",
+]
