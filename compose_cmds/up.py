@@ -105,10 +105,10 @@ def compose_up(
     # relative paths resolve correctly (not from the temp file's location).
     compose_dir = str(compose_path.parent.resolve())
 
-    unit_dir = get_unit_directory()
+    get_unit_directory()
     cmd = [
         "podlet",
-        f"--unit-directory={unit_dir}",
+        "--unit-directory",
         "--overwrite",
         "--skip-services-check",
         # "--install",
