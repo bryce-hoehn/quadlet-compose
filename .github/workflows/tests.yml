@@ -53,22 +53,23 @@ jobs:
           mkdir -p ~/.config/containers/systemd
           mkdir -p ~/.config/systemd/user
 
+      - name: Verify podman
+        run: nix develop -c podman --version
+
       - name: Set up Quadlet systemd generator
         run: |
           # Nix installs the generator in /nix/store/.../lib/systemd/user-generators/,
           # but systemd only looks in ~/.config/systemd/user-generators/ (and a few
           # system paths).  Symlink it so `systemctl --user daemon-reload` can find it.
           mkdir -p ~/.config/systemd/user-generators/
-          GENERATOR="$(find /nix/store -maxdepth 4 -name 'podman-system-generator' -type f 2>/dev/null | head -1)"
-          if [ -n "$GENERATOR" ]; then
+          PODMAN_PATH="$(nix path-info nixpkgs#podman 2>/dev/null)"
+          GENERATOR="${PODMAN_PATH:+$PODMAN_PATH/lib/systemd/user-generators/podman-system-generator}"
+          if [ -n "$GENERATOR" ] && [ -x "$GENERATOR" ]; then
             ln -sf "$GENERATOR" ~/.config/systemd/user-generators/podman-system-generator
             echo "Linked generator: $GENERATOR"
           else
-            echo "WARNING: podman-system-generator not found in Nix store"
+            echo "WARNING: podman-system-generator not found"
           fi
-
-      - name: Verify podman
-        run: nix develop -c podman --version
 
       - name: Run integration tests
         run: nix develop -c pytest -v -m integration --timeout=120
