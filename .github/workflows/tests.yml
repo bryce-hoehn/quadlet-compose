@@ -81,5 +81,8 @@ jobs:
             fi
           '
 
+      - name: Warm up rootless podman
+        run: nix develop -c podman info > /dev/null
+
       - name: Run tests
         run: nix develop -c pytest -v -m integration ${{ matrix.test }} --timeout=120
