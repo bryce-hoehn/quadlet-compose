@@ -109,7 +109,7 @@ def compose_up(
     cmd = [
         "podlet",
         "--unit-directory",
-        "--force-overwrite",
+        "--overwrite",
         "--skip-services-check",
         # "--install",
         # "--wanted-by",
