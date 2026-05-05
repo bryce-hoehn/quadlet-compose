@@ -64,25 +64,27 @@ jobs:
       - name: Verify podman
         run: nix develop -c podman --version
 
-      - name: Set up Quadlet systemd generator
+      - name: Set up Nix podman as system podman
         run: |
-          # Ubuntu ships an outdated podman-user-generator at /usr/lib/systemd/user-generators/.
-          # Replace it with the one from the Nix dev shell (which matches our podman version).
-          # systemd only searches system-level paths for generators, not user home dirs.
+          # Quadlet-generated service files hardcode /usr/bin/podman.
+          # Symlink the Nix podman (and its generator) so everything uses one version.
           nix develop -c bash -c '
             PODMAN_BIN="$(command -v podman)"
             PODMAN_STORE="${PODMAN_BIN%/bin/podman}"
+            sudo ln -sf "$PODMAN_BIN" /usr/bin/podman
             GENERATOR="${PODMAN_STORE}/lib/systemd/user-generators/podman-user-generator"
             if [ -x "$GENERATOR" ]; then
               sudo ln -sf "$GENERATOR" /usr/lib/systemd/user-generators/podman-user-generator
-              echo "Linked generator: $GENERATOR"
+              echo "Linked: $PODMAN_BIN -> /usr/bin/podman"
+              echo "Linked: $GENERATOR -> /usr/lib/systemd/user-generators/podman-user-generator"
             else
+              echo "Linked: $PODMAN_BIN -> /usr/bin/podman"
               echo "WARNING: podman-user-generator not found at $GENERATOR"
             fi
           '
 
       - name: Warm up rootless podman
-        run: nix develop -c podman info > /dev/null
+        run: podman ps > /dev/null 2>&1 || true
 
       - name: Run tests
         run: nix develop -c pytest -v -m integration ${{ matrix.test }} --timeout=120
