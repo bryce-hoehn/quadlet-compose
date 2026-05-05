@@ -1,0 +1,47 @@
+{
+	"mcpServers": {
+		"context7": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"@upstash/context7-mcp"
+			],
+			"env": {
+				"DEFAULT_MINIMUM_TOKENS": ""
+			},
+			"alwaysAllow": [
+				"resolve-library-id",
+				"get-library-docs",
+				"query-docs"
+			]
+		},
+		"ddg-search": {
+			"command": "uvx",
+			"args": [
+				"duckduckgo-mcp-server"
+			],
+			"alwaysAllow": [
+				"search",
+				"fetch_content"
+			]
+		},
+		"fetch": {
+			"command": "uvx",
+			"args": [
+				"mcp-server-fetch"
+			],
+			"alwaysAllow": [
+				"fetch"
+			]
+		},
+		"stackoverflow": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"@gscalzo/stackoverflow-mcp"
+			],
+			"disabled": false,
+			"autoApprove": []
+		}
+	}
+}
