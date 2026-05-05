@@ -64,18 +64,21 @@ class TestUpDown:
 
     def test_down_removes_containers(self):
         """podlet-compose down should remove containers."""
-        _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "up", "-d"])
-        time.sleep(5)
+        try:
+            _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "up", "-d"])
+            time.sleep(5)
 
-        # Verify containers exist before down
-        _run(["podman", "container", "exists", "test-compose-web"])
+            # Verify containers exist before down
+            _run(["podman", "container", "exists", "test-compose-web"])
 
-        # Down
-        _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "down"])
-        time.sleep(3)
+            # Down
+            _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "down"])
+            time.sleep(3)
 
-        # Verify containers are gone
-        _run(["podman", "container", "exists", "test-compose-web"], expected_rc=1)
+            # Verify containers are gone
+            _run(["podman", "container", "exists", "test-compose-web"], expected_rc=1)
+        finally:
+            _cleanup(self.compose_file)
 
     def test_up_with_volumes(self):
         """podlet-compose up with named volumes should create podman volumes."""

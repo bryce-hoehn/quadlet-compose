@@ -5,8 +5,3 @@ services:
     image: docker.io/library/nginx:alpine
     ports:
       - "58080:80"
-
-  db:
-    image: docker.io/library/redis:alpine
-    ports:
-      - "56379:6379"
