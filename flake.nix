@@ -23,7 +23,7 @@
 
         podlet-compose = pkgs.python312Packages.buildPythonApplication {
           pname = "podlet-compose";
-          version = "0.2.1";
+          version = "0.2.2";
           format = "pyproject";
 
           src = ./.;

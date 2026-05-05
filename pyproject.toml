@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "podlet-compose"
-version = "0.2.1"
+version = "0.2.2"
 description = "A thin wrapper around podlet that acts as a drop-in for docker/podman-compose"
 readme = "README.md"
 license = "MIT"
