@@ -33,6 +33,21 @@ def _run(args, expected_rc=0, timeout=60):
     return result
 
 
+def _wait_for_container(name, timeout=30):
+    """Poll until a container exists, raising on timeout."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        result = subprocess.run(
+            ["podman", "container", "exists", name],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return
+        time.sleep(1)
+    pytest.fail(f"Container {name} did not appear within {timeout}s")
+
+
 def _cleanup(compose_file):
     """Best-effort cleanup — don't fail if down doesn't work."""
     subprocess.run(
@@ -52,11 +67,11 @@ class TestUpDown:
         """podlet-compose up -d should create containers visible via podman ps."""
         try:
             _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "up", "-d"])
-            time.sleep(5)  # Wait for systemd to start containers
+            _wait_for_container("systemd-test-compose-web")
 
             result = _run(["podman", "ps", "--format", "{{.Names}}"])
             names = result.stdout.strip()
-            assert "test-compose-web" in names or "test-compose-db" in names, (
+            assert "test-compose-web" in names, (
                 f"Expected container names in podman ps output, got: {names}"
             )
         finally:
@@ -66,10 +81,7 @@ class TestUpDown:
         """podlet-compose down should remove containers."""
         try:
             _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "up", "-d"])
-            time.sleep(5)
-
-            # Verify containers exist before down
-            _run(["podman", "container", "exists", "systemd-test-compose-web"])
+            _wait_for_container("systemd-test-compose-web")
 
             # Down
             _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "down"])
@@ -85,7 +97,7 @@ class TestUpDown:
         compose_file = str(FIXTURES / "volumes" / "compose.yaml")
         try:
             _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
-            time.sleep(5)
+            _wait_for_container("systemd-volumes-test-db")
 
             result = _run(["podman", "volume", "exists", "pgdata"])
             assert result.returncode == 0, "Expected volume 'pgdata' to exist"
@@ -97,7 +109,7 @@ class TestUpDown:
         compose_file = str(FIXTURES / "networks" / "compose.yaml")
         try:
             _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
-            time.sleep(5)
+            _wait_for_container("systemd-networks-test-web")
 
             result = _run(["podman", "ps", "--format", "{{.Names}}"])
             names = result.stdout.strip()
@@ -119,7 +131,7 @@ class TestUpDown:
             assert not html_dir.exists(), "html dir should not exist before test"
             _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
             assert html_dir.is_dir(), "_ensure_bind_mount_dirs should have created html dir"
-            time.sleep(5)
+            _wait_for_container("systemd-bindmount-test-web")
             result = _run(["podman", "ps", "--format", "{{.Names}}"])
             assert "bindmount-test-web" in result.stdout.strip()
         finally:
