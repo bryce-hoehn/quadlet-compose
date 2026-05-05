@@ -35,4 +35,18 @@ def run_cmd(cmd: list[str], *, quiet: bool = False) -> subprocess.CompletedProce
     except FileNotFoundError as exc:
         raise ComposeError(f"Command not found: `{cmd[0]}`") from exc
     except subprocess.CalledProcessError as exc:
-        raise ComposeError(f"Command failed: {exc.stderr or exc}") from exc
+        parts = [f"Command `{' '.join(cmd)}` failed (exit {exc.returncode})"]
+        if exc.stderr and exc.stderr.strip():
+            parts.append(exc.stderr.strip())
+        try:
+            journal = subprocess.run(
+                ["journalctl", "--user", "-n", "10", "--no-pager"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if journal.stdout and journal.stdout.strip():
+                parts.append(journal.stdout.strip())
+        except Exception:
+            pass
+        raise ComposeError("\n".join(parts)) from exc
