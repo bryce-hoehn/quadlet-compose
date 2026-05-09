@@ -1,9 +1,8 @@
-"""Podlet workarounds — all disabled by default.
+"""Podlet workarounds — enabled by default.
 
 Each hack is a self-contained module that transforms compose data to work
-around podlet limitations.  Enable individual hacks via the
-``PODLET_COMPOSE_HACKS`` environment variable (comma-separated list of
-hack names, or ``all`` to enable every hack).
+around podlet limitations.  All hacks are enabled by default.  Set
+``PODLET_COMPOSE_HACKS=false`` to disable them all.
 
 Available hacks:
 
@@ -18,8 +17,7 @@ Available hacks:
 
 Example::
 
-    PODLET_COMPOSE_HACKS=interpolate,name_inject podlet-compose up
-    PODLET_COMPOSE_HACKS=all podlet-compose up
+    PODLET_COMPOSE_HACKS=false podlet-compose up
 """
 
 import importlib
@@ -87,14 +85,13 @@ DICT_HACKS: dict[str, dict[str, object]] = {
 ALL_HACKS = {**TEXT_HACKS, **DICT_HACKS}
 
 
-def _enabled_hacks() -> list[str]:
-    """Return the list of hack names enabled via ``PODLET_COMPOSE_HACKS``."""
-    raw = os.environ.get("PODLET_COMPOSE_HACKS", "").strip()
-    if not raw:
-        return []
-    if raw.lower() == "all":
-        return list(ALL_HACKS.keys())
-    return [name.strip() for name in raw.split(",") if name.strip() in ALL_HACKS]
+def _hacks_enabled() -> bool:
+    """Return whether hacks are enabled.
+
+    Defaults to ``True``.  Set ``PODLET_COMPOSE_HACKS=false`` to disable.
+    """
+    raw = os.environ.get("PODLET_COMPOSE_HACKS", "").strip().lower()
+    return raw not in ("false", "0", "no")
 
 
 def _load_func(entry: dict) -> Callable:
@@ -104,30 +101,28 @@ def _load_func(entry: dict) -> Callable:
 
 
 def apply_text_hacks(raw_text: str, compose_path: Path) -> str:
-    """Apply enabled text-level hacks to *raw_text*.
+    """Apply all text-level hacks to *raw_text*.
 
-    Returns the (possibly modified) text.  No-ops when no text hacks are
-    enabled.
+    Returns the (possibly modified) text.  No-ops when hacks are disabled.
     """
-    enabled = _enabled_hacks()
-    for name in enabled:
-        if name in TEXT_HACKS:
-            func: TextHackFunc = _load_func(TEXT_HACKS[name])
-            raw_text = func(raw_text, compose_path)
+    if not _hacks_enabled():
+        return raw_text
+    for name, entry in TEXT_HACKS.items():
+        func: TextHackFunc = _load_func(entry)
+        raw_text = func(raw_text, compose_path)
     return raw_text
 
 
 def apply_dict_hacks(data: dict, compose_path: Path) -> None:
-    """Apply enabled dict-level hacks to *data* in-place.
+    """Apply all dict-level hacks to *data* in-place.
 
-    No-ops when no dict hacks are enabled.
+    No-ops when hacks are disabled.
     """
-    enabled = _enabled_hacks()
-    for name in enabled:
-        if name in DICT_HACKS:
-            entry = DICT_HACKS[name]
-            func: DictHackFunc = _load_func(entry)
-            if entry.get("needs_path"):
-                func(data, compose_path)
-            else:
-                func(data)
+    if not _hacks_enabled():
+        return
+    for name, entry in DICT_HACKS.items():
+        func: DictHackFunc = _load_func(entry)
+        if entry.get("needs_path"):
+            func(data, compose_path)
+        else:
+            func(data)

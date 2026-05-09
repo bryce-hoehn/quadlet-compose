@@ -343,11 +343,12 @@ class TestIterServices:
 
 
 class TestPrepareCompose:
-    """Tests for prepare_compose with hacks disabled/enabled."""
+    """Tests for prepare_compose with hacks enabled/disabled."""
 
-    def test_no_hacks_by_default(self, tmp_path, monkeypatch):
-        """When PODLET_COMPOSE_HACKS is unset, compose file passes through unchanged."""
+    def test_all_hacks_applied_by_default(self, tmp_path, monkeypatch):
+        """When PODLET_COMPOSE_HACKS is unset, all hacks are applied."""
         monkeypatch.delenv("PODLET_COMPOSE_HACKS", raising=False)
+        monkeypatch.setenv("TEST_IMAGE", "nginx:alpine")
         compose_file = tmp_path / "compose.yaml"
         compose_file.write_text(
             "services:\n  web:\n    image: ${TEST_IMAGE}\nx-custom: foo\n"
@@ -355,26 +356,30 @@ class TestPrepareCompose:
         result_path = prepare_compose(compose_file)
         try:
             content = result_path.read_text()
-            # No name injection, no interpolation, no extension stripping
+            assert f"name: {tmp_path.name}" in content
+            assert "nginx:alpine" in content
+            assert "x-custom" not in content
+        finally:
+            result_path.unlink(missing_ok=True)
+
+    def test_false_disables_all_hacks(self, tmp_path, monkeypatch):
+        """PODLET_COMPOSE_HACKS=false disables every hack."""
+        monkeypatch.setenv("PODLET_COMPOSE_HACKS", "false")
+        compose_file = tmp_path / "compose.yaml"
+        compose_file.write_text(
+            "services:\n  web:\n    image: ${TEST_IMAGE}\nx-custom: foo\n"
+        )
+        result_path = prepare_compose(compose_file)
+        try:
+            content = result_path.read_text()
             assert "name:" not in content
             assert "${TEST_IMAGE}" in content
             assert "x-custom" in content
         finally:
             result_path.unlink(missing_ok=True)
 
-    def test_injects_name_when_enabled(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("PODLET_COMPOSE_HACKS", "name_inject")
-        compose_file = tmp_path / "compose.yaml"
-        compose_file.write_text("services:\n  web:\n    image: nginx\n")
-        result_path = prepare_compose(compose_file)
-        try:
-            content = result_path.read_text()
-            assert f"name: {tmp_path.name}" in content
-        finally:
-            result_path.unlink(missing_ok=True)
-
-    def test_interpolates_env_vars_when_enabled(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("PODLET_COMPOSE_HACKS", "interpolate")
+    def test_interpolates_env_vars_by_default(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("PODLET_COMPOSE_HACKS", raising=False)
         monkeypatch.setenv("TEST_IMAGE", "nginx:alpine")
         compose_file = tmp_path / "compose.yaml"
         compose_file.write_text(
@@ -387,9 +392,9 @@ class TestPrepareCompose:
         finally:
             result_path.unlink(missing_ok=True)
 
-    def test_strips_extensions_when_enabled(self, tmp_path, monkeypatch):
-        """x-* keys are removed when strip_extensions hack is enabled."""
-        monkeypatch.setenv("PODLET_COMPOSE_HACKS", "strip_extensions")
+    def test_strips_extensions_by_default(self, tmp_path, monkeypatch):
+        """x-* keys are removed by default."""
+        monkeypatch.delenv("PODLET_COMPOSE_HACKS", raising=False)
         compose_file = tmp_path / "compose.yaml"
         compose_file.write_text(
             "name: test\nservices:\n  web:\n    image: nginx\nx-custom: foo\n"
@@ -401,8 +406,8 @@ class TestPrepareCompose:
         finally:
             result_path.unlink(missing_ok=True)
 
-    def test_uses_dotenv_values_when_enabled(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("PODLET_COMPOSE_HACKS", "interpolate")
+    def test_uses_dotenv_values_by_default(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("PODLET_COMPOSE_HACKS", raising=False)
         monkeypatch.delenv("MY_IMAGE", raising=False)
         (tmp_path / ".env").write_text("MY_IMAGE=redis:alpine\n")
         compose_file = tmp_path / "compose.yaml"
@@ -413,25 +418,5 @@ class TestPrepareCompose:
         try:
             content = result_path.read_text()
             assert "redis:alpine" in content
-        finally:
-            result_path.unlink(missing_ok=True)
-
-    def test_all_hacks_enabled(self, tmp_path, monkeypatch):
-        """PODLET_COMPOSE_HACKS=all enables every hack."""
-        monkeypatch.setenv("PODLET_COMPOSE_HACKS", "all")
-        monkeypatch.setenv("TEST_IMAGE", "nginx:alpine")
-        compose_file = tmp_path / "compose.yaml"
-        compose_file.write_text(
-            "services:\n  web:\n    image: ${TEST_IMAGE}\nx-custom: foo\n"
-        )
-        result_path = prepare_compose(compose_file)
-        try:
-            content = result_path.read_text()
-            # interpolate resolved the variable
-            assert "nginx:alpine" in content
-            # name_inject added the name
-            assert f"name: {tmp_path.name}" in content
-            # strip_extensions removed x-custom
-            assert "x-custom" not in content
         finally:
             result_path.unlink(missing_ok=True)

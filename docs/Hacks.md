@@ -1,17 +1,14 @@
 # Hacks (Podlet Workarounds)
 
-podlet-compose includes optional workarounds for known podlet limitations and compose file transformations. **All hacks are disabled by default** — your compose file is passed to podlet as-is.
+podlet-compose includes workarounds for known podlet limitations and compose file transformations. **All hacks are enabled by default** — your compose file is automatically transformed before being passed to podlet.
 
-Enable hacks via the `PODLET_COMPOSE_HACKS` environment variable:
+Disable hacks via the `PODLET_COMPOSE_HACKS` environment variable:
 
 ```bash
-# Enable specific hacks
-PODLET_COMPOSE_HACKS=interpolate,name_inject podlet-compose up
+# Disable all hacks
+PODLET_COMPOSE_HACKS=false podlet-compose up
 
-# Enable all hacks
-PODLET_COMPOSE_HACKS=all podlet-compose up
-
-# No hacks (default)
+# All hacks enabled (default)
 podlet-compose up
 ```
 
@@ -64,12 +61,7 @@ Named volumes (e.g. `["data"]`) are left unchanged.
 
 Removes all top-level `x-*` extension keys from the compose file. Podlet does not support compose extensions (e.g. `x-custom`, `x-env`).
 
-## When to Enable Hacks
+## When to Disable Hacks
 
-- Enable `interpolate` if your compose file uses `$VAR` / `${VAR}` patterns that need resolution before podlet processes the file.
-- Enable `name_inject` if your compose file lacks a `name:` field and you're using `--pod` or `--kube` mode.
-- Enable `normalize` if your compose file uses `hostname`, `network_mode`, `configs`, non-external `secrets`, image tags with digests, or `depends_on` with `service_healthy`/`service_completed_successfully` conditions.
-- Enable `expand` if your compose file uses short-form devices, ports, or volumes.
-- Enable `strip_extensions` if your compose file contains `x-*` keys that cause podlet to error.
-
-If podlet handles your compose file without errors, you don't need any hacks.
+- Disable hacks if you want podlet to see your compose file exactly as-written, with no transformations applied.
+- If podlet handles your compose file without errors, you can leave hacks enabled without issue.

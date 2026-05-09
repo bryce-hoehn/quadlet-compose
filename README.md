@@ -52,16 +52,13 @@ Commands:
 - [rich](https://pypi.org/project/rich/)
 - [ruamel.yaml](https://pypi.org/project/ruamel.yaml/)
 
-## Hacks (Optional Workarounds)
+## Hacks (Podlet Workarounds)
 
-All compose file transformations are **disabled by default**. Enable them via `PODLET_COMPOSE_HACKS`:
+All compose file transformations are **enabled by default**. Disable them via `PODLET_COMPOSE_HACKS`:
 
 ```bash
-# Enable specific hacks
-PODLET_COMPOSE_HACKS=interpolate,name_inject podlet-compose up
-
-# Enable all hacks
-PODLET_COMPOSE_HACKS=all podlet-compose up
+# Disable all hacks
+PODLET_COMPOSE_HACKS=false podlet-compose up
 ```
 
 Available hacks: `interpolate`, `name_inject`, `normalize`, `expand`, `strip_extensions`. See the [Hacks](https://github.com/bryce-hoehn/podlet-compose/wiki/Hacks) wiki page for details.
@@ -73,7 +70,7 @@ Full documentation is available in the [GitHub Wiki](https://github.com/bryce-ho
 - **[Installation](https://github.com/bryce-hoehn/podlet-compose/wiki/Installation)** — Pip, PyInstaller binary, Nix, and podman compose provider setup
 - **[Commands](https://github.com/bryce-hoehn/podlet-compose/wiki/Commands)** — Full command reference
 - **[How It Works](https://github.com/bryce-hoehn/podlet-compose/wiki/How-It-Works)** — Technical architecture and internals
-- **[Hacks](https://github.com/bryce-hoehn/podlet-compose/wiki/Hacks)** — Optional workarounds for podlet limitations
+- **[Hacks](https://github.com/bryce-hoehn/podlet-compose/wiki/Hacks)** — Podlet workarounds (enabled by default)
 - **[Limitations](https://github.com/bryce-hoehn/podlet-compose/wiki/Limitations)** — Known limitations
 
 ## License

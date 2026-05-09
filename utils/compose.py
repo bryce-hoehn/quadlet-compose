@@ -44,8 +44,8 @@ def prepare_compose(compose_path: Path) -> Path:
 
     Reads the compose file, applies any enabled hacks (text-level then
     dict-level), and writes the result to a temporary file.  All hacks
-    are **disabled by default**; enable them via the
-    ``PODLET_COMPOSE_HACKS`` environment variable.
+    are **enabled by default**; set ``PODLET_COMPOSE_HACKS=false`` to
+    disable them.
 
     See the ``hacks/`` package for available hacks.
 
