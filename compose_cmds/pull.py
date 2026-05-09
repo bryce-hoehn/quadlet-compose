@@ -20,7 +20,7 @@ def compose_pull(compose_file: str | None = None, **_kwargs) -> None:
     images = services  # name -> image ref
 
     def pull_target(svc_name):
-        run_cmd(["podman", "pull", images[svc_name]])
+        run_cmd(["podman", "pull", images[svc_name]], quiet=True)
 
     def label(svc_name):
         return "Image", images[svc_name]
