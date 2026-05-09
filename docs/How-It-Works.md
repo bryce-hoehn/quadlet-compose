@@ -25,9 +25,9 @@ podlet-compose **never modifies your source compose file**. All transformations 
 
 This ensures your source files remain untouched regardless of what transformations are needed.
 
-## Hacks (Optional Workarounds)
+## Hacks (Podlet Workarounds)
 
-All compose file transformations are **disabled by default** and controlled via the `PODLET_COMPOSE_HACKS` environment variable. See the [Hacks](Hacks) page for full details.
+All compose file transformations are **enabled by default**. Set ``PODLET_COMPOSE_HACKS=false`` to disable them. See the [Hacks](Hacks) page for full details.
 
 Available hacks:
 
