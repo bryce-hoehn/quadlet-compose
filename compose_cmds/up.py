@@ -54,7 +54,13 @@ def _ensure_bind_mount_dirs(compose_data: dict, compose_dir: Path) -> None:
                 os.makedirs(host_path, exist_ok=True)
 
 
-def _remove_stale_files(unit_dir: Path, project: str, current_services: list[str], current_volumes: list[str], current_networks: list[str]) -> None:
+def _remove_stale_files(
+    unit_dir: Path,
+    project: str,
+    current_services: list[str],
+    current_volumes: list[str],
+    current_networks: list[str],
+) -> None:
     """Remove quadlet files for services/volumes/networks no longer in the compose file."""
     current_bases = {f"{project}-{svc}" for svc in current_services}
     current_bases.update(current_volumes)
@@ -126,7 +132,8 @@ def compose_up(
     unit_dir = get_unit_directory()
 
     _remove_stale_files(
-        unit_dir, project,
+        unit_dir,
+        project,
         compose_data["service_names"],
         compose_data["volume_names"],
         compose_data["network_names"],
@@ -149,30 +156,21 @@ def compose_up(
         cmd.append("--pod")
     cmd.append(str(podlet_input))
 
-    # Create host directories for bind mounts (docker-compose compatibility)
+    # Create host directories for bind mounts
     _ensure_bind_mount_dirs(compose_data, compose_path.parent.resolve())
 
-    # Generate quadlet files with [Install] sections (suppress podlet's stdout).
-    # The Quadlet systemd generator reads [Install] and creates .wants/
-    # symlinks automatically
     run_cmd(cmd, quiet=True)
 
-    # Reload systemd — the Quadlet generator picks up the new quadlet files,
-    # generates .service files, and creates autostart symlinks from [Install].
     run_cmd(["systemctl", "--user", "daemon-reload"], quiet=True)
 
     # Determine targets
     if kube:
         targets = [project]
     else:
-        # In pod mode, starting the pod automatically starts all containers
-        # via Quadlet's StartWithPod=true (default). No need to start
-        # individual container units separately.
         targets = [f"{project}-pod"]
 
-    # Start/restart targets with live progress display
     def start_target(target):
-        run_cmd(["systemctl", "--user", "restart", target])
+        run_cmd(["systemctl", "--user", "start", target])
 
     run_with_progress(targets, start_target, "Started")
 
