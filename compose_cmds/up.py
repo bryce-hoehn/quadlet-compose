@@ -21,19 +21,10 @@ _console = Console()
 
 
 def _is_bind_mount(source: str) -> bool:
-    """True if the source looks like a host path (not a named volume)."""
     return source.startswith(".") or source.startswith("/")
 
 
 def _parse_volume_host_path(vol) -> str | None:
-    """Extract the host-side path from a volume entry, or None if not a bind mount.
-
-    Handles both short-form strings and long-form dicts per the Compose spec:
-
-      - ``"host:container[:mode]"``          → host path if bind mount
-      - ``{type: bind, source: ./data, …}``  → source
-      - ``{type: volume, source: data, …}``  → None (named volume)
-    """
     if isinstance(vol, str):
         source = vol.split(":")[0]
         return source if _is_bind_mount(source) else None
@@ -43,7 +34,6 @@ def _parse_volume_host_path(vol) -> str | None:
         source = vol.get("source", "")
         if vol_type == "bind":
             return source
-        # Fallback: no explicit type but source looks like a path
         if vol_type is None and _is_bind_mount(source):
             return source
         return None
@@ -52,7 +42,6 @@ def _parse_volume_host_path(vol) -> str | None:
 
 
 def _ensure_bind_mount_dirs(compose_data: dict, compose_dir: Path) -> None:
-    """Create host directories for bind mounts that don't yet exist."""
     for svc_config in compose_data["services"].values():
         if not isinstance(svc_config, dict):
             continue
@@ -63,6 +52,41 @@ def _ensure_bind_mount_dirs(compose_data: dict, compose_dir: Path) -> None:
             host_path = (compose_dir / host_path_str).resolve()
             if not host_path.exists():
                 os.makedirs(host_path, exist_ok=True)
+
+
+def _remove_stale_files(
+    unit_dir: Path,
+    project: str,
+    current_services: list[str],
+    current_volumes: list[str],
+    current_networks: list[str],
+) -> None:
+    """Remove quadlet files for services/volumes/networks no longer in the compose file."""
+    current_bases = {f"{project}-{svc}" for svc in current_services}
+    current_bases.update(current_volumes)
+    current_bases.update(current_networks)
+    current_bases.add(f"{project}-pod")
+    current_bases.add(f"{project}.pod")
+    current_bases.add(f"{project}.kube")
+    current_bases.add(f"{project}-kube")
+
+    stale = []
+    for f in unit_dir.iterdir():
+        if not f.name.startswith(f"{project}-"):
+            continue
+        stem = f.stem
+        if stem in current_bases:
+            continue
+        if any(stem == f"{project}-{svc}" for svc in current_services):
+            continue
+        if f.suffix in (".container", ".build", ".volume", ".network", ".pod", ".kube"):
+            stale.append(f)
+        elif f.name.endswith("-kube.yaml"):
+            stale.append(f)
+
+    for f in stale:
+        run_cmd(["systemctl", "--user", "stop", f.stem], quiet=True)
+        f.unlink()
 
 
 def compose_up(
@@ -105,7 +129,16 @@ def compose_up(
     # relative paths resolve correctly (not from the temp file's location).
     compose_dir = str(compose_path.parent.resolve())
 
-    get_unit_directory()
+    unit_dir = get_unit_directory()
+
+    _remove_stale_files(
+        unit_dir,
+        project,
+        compose_data["service_names"],
+        compose_data["volume_names"],
+        compose_data["network_names"],
+    )
+
     cmd = [
         "podlet",
         "--unit-directory",
@@ -123,30 +156,21 @@ def compose_up(
         cmd.append("--pod")
     cmd.append(str(podlet_input))
 
-    # Create host directories for bind mounts (docker-compose compatibility)
+    # Create host directories for bind mounts
     _ensure_bind_mount_dirs(compose_data, compose_path.parent.resolve())
 
-    # Generate quadlet files with [Install] sections (suppress podlet's stdout).
-    # The Quadlet systemd generator reads [Install] and creates .wants/
-    # symlinks automatically
     run_cmd(cmd, quiet=True)
 
-    # Reload systemd — the Quadlet generator picks up the new quadlet files,
-    # generates .service files, and creates autostart symlinks from [Install].
     run_cmd(["systemctl", "--user", "daemon-reload"], quiet=True)
 
     # Determine targets
     if kube:
         targets = [project]
     else:
-        # In pod mode, starting the pod automatically starts all containers
-        # via Quadlet's StartWithPod=true (default). No need to start
-        # individual container units separately.
         targets = [f"{project}-pod"]
 
-    # Start/restart targets with live progress display
     def start_target(target):
-        run_cmd(["systemctl", "--user", "restart", target])
+        run_cmd(["systemctl", "--user", "start", target])
 
     run_with_progress(targets, start_target, "Started")
 
