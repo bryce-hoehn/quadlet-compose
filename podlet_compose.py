@@ -27,7 +27,7 @@ def print_help() -> None:
     console = Console()
     console.print(
         Text("Usage:", style="bold dark_orange"),
-        "podlet-compose [OPTIONS] COMMAND",
+        "quadlet-compose [OPTIONS] COMMAND",
     )
     console.print()
     console.print(
@@ -155,7 +155,7 @@ COMMANDS = [
 def main() -> None:
     """Parse CLI arguments and dispatch to the appropriate compose command."""
     parser = argparse.ArgumentParser(
-        prog="podlet-compose",
+        prog="quadlet-compose",
         add_help=False,
     )
 

@@ -1,6 +1,6 @@
 # Limitations
 
-## podlet-compose
+## quadlet-compose
 
 - Some `podman compose` CLI options (e.g., `--env-file`, `--profile`) are not yet handled.
 - Services always run as systemd user units — there is no system-level (root) mode (feature, not a bug!).
@@ -18,7 +18,7 @@
 
 ## Optional workarounds
 
-podlet-compose provides optional hacks (disabled by default) to work around many of these limitations. See the [Hacks](Hacks) page for details.
+quadlet-compose provides optional hacks (disabled by default) to work around many of these limitations. See the [Hacks](Hacks) page for details.
 
 | Hack | Workaround |
 |---|---|

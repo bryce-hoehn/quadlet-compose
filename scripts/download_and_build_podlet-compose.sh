@@ -1,16 +1,16 @@
 #!/bin/sh
 
 # Delete repository dir
-rm -rf podlet-compose-src
+rm -rf quadlet-compose-src
 
 # Clone repository
-git clone https://github.com/bryce-hoehn/podlet-compose podlet-compose-src
+git clone https://github.com/bryce-hoehn/quadlet-compose quadlet-compose-src
 
 # Generate binary
-sh podlet-compose-src/scripts/generate_binary_using_dockerfile.sh
+sh quadlet-compose-src/scripts/generate_binary_using_dockerfile.sh
 
 # Move binary outside repo's dir
-mv podlet-compose-src/podlet-compose .
+mv quadlet-compose-src/quadlet-compose .
 
 # Delete repository dir
-rm -rf podlet-compose-src
+rm -rf quadlet-compose-src

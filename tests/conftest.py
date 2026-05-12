@@ -1,4 +1,4 @@
-"""Shared test fixtures for podlet-compose."""
+"""Shared test fixtures for quadlet-compose."""
 
 from pathlib import Path
 

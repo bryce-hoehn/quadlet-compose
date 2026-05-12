@@ -21,8 +21,8 @@
           podman
         ];
 
-        podlet-compose = pkgs.python312Packages.buildPythonApplication {
-          pname = "podlet-compose";
+        quadlet-compose = pkgs.python312Packages.buildPythonApplication {
+          pname = "quadlet-compose";
           version = "0.2.1";
           format = "pyproject";
 
@@ -47,7 +47,7 @@
 
           meta = with pkgs.lib; {
             description = "A thin wrapper around podlet that acts as a drop-in for docker/podman-compose";
-            homepage = "https://github.com/bryce-hoehn/podlet-compose";
+            homepage = "https://github.com/bryce-hoehn/quadlet-compose";
             license = licenses.mit;
             platforms = platforms.linux;
           };
@@ -55,8 +55,8 @@
       in
       {
         packages = {
-          default = podlet-compose;
-          podlet-compose = podlet-compose;
+          default = quadlet-compose;
+          quadlet-compose = quadlet-compose;
         };
 
         devShells.default = pkgs.mkShell {
@@ -70,7 +70,7 @@
           ] ++ pythonDeps;
 
           shellHook = ''
-            echo "podlet-compose dev shell"
+            echo "quadlet-compose dev shell"
             echo "Run: python podlet_compose.py --help"
           '';
         };

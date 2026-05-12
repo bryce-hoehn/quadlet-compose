@@ -1,4 +1,4 @@
-"""Utility modules for podlet-compose."""
+"""Utility modules for quadlet-compose."""
 
 from .config import get_unit_directory
 from .compose import (

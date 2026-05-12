@@ -1,5 +1,5 @@
-- **[Installation](https://github.com/bryce-hoehn/podlet-compose/wiki/Installation)** — Pip, PyInstaller binary, Nix, and podman compose provider setup
-- **[Commands](https://github.com/bryce-hoehn/podlet-compose/wiki/Commands)** — Full command reference
-- **[How It Works](https://github.com/bryce-hoehn/podlet-compose/wiki/How-It-Works)** — Technical architecture and internals
-- **[Hacks](https://github.com/bryce-hoehn/podlet-compose/wiki/Hacks)** — Optional workarounds for podlet limitations
-- **[Limitations](https://github.com/bryce-hoehn/podlet-compose/wiki/Limitations)** — Known limitations
+- **[Installation](https://github.com/bryce-hoehn/quadlet-compose/wiki/Installation)** — Pip, PyInstaller binary, Nix, and podman compose provider setup
+- **[Commands](https://github.com/bryce-hoehn/quadlet-compose/wiki/Commands)** — Full command reference
+- **[How It Works](https://github.com/bryce-hoehn/quadlet-compose/wiki/How-It-Works)** — Technical architecture and internals
+- **[Hacks](https://github.com/bryce-hoehn/quadlet-compose/wiki/Hacks)** — Optional workarounds for podlet limitations
+- **[Limitations](https://github.com/bryce-hoehn/quadlet-compose/wiki/Limitations)** — Known limitations

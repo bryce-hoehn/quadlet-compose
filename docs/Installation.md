@@ -3,46 +3,46 @@
 ### Install the latest release version from PyPi (recommended):
 
 ```bash
-pip install podlet-compose
+pip install quadlet-compose
 ```
 
 ### Install the latest development version from GitHub:
 
 ```bash
-pip3 install https://github.com/bryce-hoehn/podlet-compose/archive/main.tar.gz
+pip3 install https://github.com/bryce-hoehn/quadlet-compose/archive/main.tar.gz
 ```
 
 ### Standalone Binary (PyInstaller)
 
-Generate a standalone binary using Docker or Podman. This script downloads the repo, builds a static binary using [PyInstaller](https://pyinstaller.org/) via [the Dockerfile](https://github.com/bryce-hoehn/podlet-compose/blob/main/Dockerfile), and places it in the current directory:
+Generate a standalone binary using Docker or Podman. This script downloads the repo, builds a static binary using [PyInstaller](https://pyinstaller.org/) via [the Dockerfile](https://github.com/bryce-hoehn/quadlet-compose/blob/main/Dockerfile), and places it in the current directory:
 
 ```bash
-sh -c "$(curl -sSL https://raw.githubusercontent.com/bryce-hoehn/podlet-compose/main/scripts/download_and_build_podlet-compose.sh)"
+sh -c "$(curl -sSL https://raw.githubusercontent.com/bryce-hoehn/quadlet-compose/main/scripts/download_and_build_quadlet-compose.sh)"
 ```
 
 Then move it to your PATH:
 
 ```bash
-chmod +x podlet-compose
-sudo mv podlet-compose ~/.local/bin/
+chmod +x quadlet-compose
+sudo mv quadlet-compose ~/.local/bin/
 ```
 
 # Installing as a podman compose provider
 
-podlet-compose can be registered as a [compose provider](https://docs.podman.io/en/latest/markdown/podman-compose.1.html) for `podman compose`, so that `podman compose up` uses podlet-compose instead of docker-compose or podman-compose.
+quadlet-compose can be registered as a [compose provider](https://docs.podman.io/en/latest/markdown/podman-compose.1.html) for `podman compose`, so that `podman compose up` uses quadlet-compose instead of docker-compose or podman-compose.
 
 Edit `~/.config/containers/containers.conf` (create it if it doesn't exist) and add:
 
    ```toml
    [engine]
-   compose_providers = ["podlet-compose"]
+   compose_providers = ["quadlet-compose"]
    compose_warning_logs = false
    ```
 
 You can also set the provider via the `PODMAN_COMPOSE_PROVIDER` environment variable:
 
 ```bash
-export PODMAN_COMPOSE_PROVIDER=podlet-compose
+export PODMAN_COMPOSE_PROVIDER=quadlet-compose
 podman compose up
 ```
 
@@ -55,17 +55,17 @@ To use in a NixOS config, add the flake input and reference the package. Example
 
 ```nix
 {
-  description = "Podlet-compose NixOS Configuration";
+  description = "quadlet-compose NixOS Configuration";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    podlet-compose.url = "github:bryce-hoehn/podlet-compose";
+    quadlet-compose.url = "github:bryce-hoehn/quadlet-compose";
   };
 
   outputs = {
     self, 
     nixpkgs,
-    podlet-compose,
+    quadlet-compose,
     ...   
   }@inputs: {
     nixosConfigurations = {
@@ -74,7 +74,7 @@ To use in a NixOS config, add the flake input and reference the package. Example
         modules = [
           ./configuration.nix
           ({ pkgs, ... }: {
-            environment.systemPackages = [ podlet-compose.packages.${pkgs.system}.default ];
+            environment.systemPackages = [ quadlet-compose.packages.${pkgs.system}.default ];
           })
         ];
       };
@@ -96,7 +96,7 @@ To use in a NixOS config, add the flake input and reference the package. Example
 
 ### Compose Provider
 
-Make podlet-compose the default podman compose provider.
+Make quadlet-compose the default podman compose provider.
 
 ```nix
   virtualisation.containers.containersConf.settings = {
@@ -104,7 +104,7 @@ Make podlet-compose the default podman compose provider.
       userns = "keep-id"; # probably optional?
     };
     engine = {
-      compose_providers = ["podlet-compose"]; # set podlet-compose as podman compose provider
+      compose_providers = ["quadlet-compose"]; # set quadlet-compose as podman compose provider
       compose_warning_logs = false; # disables annoying podman compose warning
     };
   };

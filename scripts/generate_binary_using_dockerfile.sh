@@ -42,16 +42,16 @@ check_selinux() {
 SELINUX=$(check_selinux)
 
 # Build binary
-$CONTAINER_TOOL image rm build-podlet-compose
+$CONTAINER_TOOL image rm build-quadlet-compose
 
 if expr "$CONTAINER_TOOL" : '.*docker.*' >/dev/null; then
-    $CONTAINER_TOOL build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t build-podlet-compose "$PROJECT_ROOT_DIR"
-    $CONTAINER_TOOL run --name build-podlet-compose build-podlet-compose
-    $CONTAINER_TOOL cp build-podlet-compose:/result/podlet-compose "$PROJECT_ROOT_DIR/podlet-compose"
-    $CONTAINER_TOOL container stop build-podlet-compose
-    $CONTAINER_TOOL container rm -f build-podlet-compose
+    $CONTAINER_TOOL build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t build-quadlet-compose "$PROJECT_ROOT_DIR"
+    $CONTAINER_TOOL run --name build-quadlet-compose build-quadlet-compose
+    $CONTAINER_TOOL cp build-quadlet-compose:/result/quadlet-compose "$PROJECT_ROOT_DIR/quadlet-compose"
+    $CONTAINER_TOOL container stop build-quadlet-compose
+    $CONTAINER_TOOL container rm -f build-quadlet-compose
 else
-    $CONTAINER_TOOL build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -v "$PROJECT_ROOT_DIR:/result$SELINUX" -t build-podlet-compose "$PROJECT_ROOT_DIR"
+    $CONTAINER_TOOL build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -v "$PROJECT_ROOT_DIR:/result$SELINUX" -t build-quadlet-compose "$PROJECT_ROOT_DIR"
 fi
 $CONTAINER_TOOL image rm python:3.11-slim
-$CONTAINER_TOOL image rm build-podlet-compose
+$CONTAINER_TOOL image rm build-quadlet-compose

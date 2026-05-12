@@ -1,4 +1,4 @@
-# podlet-compose
+# quadlet-compose
 
 A thin wrapper around [podlet](https://github.com/containers/podlet) that acts as a drop-in replacement for `docker-compose` / `podman-compose`. It translates `compose.yaml` files into Podman Quadlet units and manages them via `systemctl`.
 
@@ -25,8 +25,8 @@ podlet_compose.py        # CLI entry point (argparse + rich)
 
 ## Design Principles
 
-- **Delegate, don't reimplement.** Hand off all heavy lifting to `podlet` (quadlet generation) and `systemd`/`systemctl` (service lifecycle). podlet-compose is a glue layer, not a runtime.
-- **docker-compose parity only.** Do not implement features beyond what `docker-compose` provides. If docker-compose doesn't do it, podlet-compose shouldn't either. New commands must map to an existing `docker-compose` subcommand.
+- **Delegate, don't reimplement.** Hand off all heavy lifting to `podlet` (quadlet generation) and `systemd`/`systemctl` (service lifecycle). quadlet-compose is a glue layer, not a runtime.
+- **docker-compose parity only.** Do not implement features beyond what `docker-compose` provides. If docker-compose doesn't do it, quadlet-compose shouldn't either. New commands must map to an existing `docker-compose` subcommand.
 - **Prefer Nix tooling.** Use `nix develop` for local development, `nix flake check` for validation, and Nix store paths for CI dependencies. Avoid installing packages via `apt` when a Nix equivalent exists.
 - **Keep the surface area small.** Each `compose_cmds/*.py` module should be a thin translation layer: parse compose config → call podlet → call systemctl. Business logic lives in podlet and systemd, not here.
 
