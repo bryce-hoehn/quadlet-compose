@@ -93,6 +93,7 @@ def compose_up(
     compose_file: str | None = None,
     kube: bool = False,
     detach: bool = False,
+    remove_orphans: bool = False,
     **_kwargs,
 ) -> None:
     """Generate Podman Quadlet files from a compose file and start the services.
@@ -103,6 +104,9 @@ def compose_up(
 
     By default, follows service logs with journalctl (attached mode).
     Use -d/--detach to start without following logs.
+
+    Set *remove_orphans* to True to remove quadlet files for services
+    that are no longer defined in the compose file.
     """
 
     try:
@@ -131,13 +135,14 @@ def compose_up(
 
     unit_dir = get_unit_directory()
 
-    _remove_stale_files(
-        unit_dir,
-        project,
-        compose_data["service_names"],
-        compose_data["volume_names"],
-        compose_data["network_names"],
-    )
+    if remove_orphans:
+        _remove_stale_files(
+            unit_dir,
+            project,
+            compose_data["service_names"],
+            compose_data["volume_names"],
+            compose_data["network_names"],
+        )
 
     cmd = [
         "podlet",
