@@ -77,13 +77,30 @@ COMMANDS = [
                     "help": "Run in background without following logs",
                 },
             ),
+            (
+                "--remove-orphans",
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "help": "Remove containers for services not defined in the Compose file",
+                },
+            ),
         ],
     },
     {
         "name": "down",
         "help": "Stop and remove containers",
         "func": compose_down,
-        "args": [],
+        "args": [
+            (
+                "--remove-orphans",
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "help": "Remove containers for services not defined in the Compose file",
+                },
+            ),
+        ],
     },
     {
         "name": "restart",
@@ -97,6 +114,14 @@ COMMANDS = [
                     "action": "store_true",
                     "default": False,
                     "help": "Run in background without following logs",
+                },
+            ),
+            (
+                "--remove-orphans",
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "help": "Remove containers for services not defined in the Compose file",
                 },
             ),
         ],
@@ -167,6 +192,7 @@ def main() -> None:
             compose_file=args.compose_file,
             kube=getattr(args, "kube", False),
             detach=getattr(args, "detach", False),
+            remove_orphans=getattr(args, "remove_orphans", False),
         )
     except (ComposeError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
