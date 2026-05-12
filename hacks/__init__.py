@@ -17,7 +17,7 @@ Available hacks:
 
 Example::
 
-    PODLET_COMPOSE_HACKS=false podlet-compose up
+    PODLET_COMPOSE_HACKS=false quadlet-compose up
 """
 
 import importlib

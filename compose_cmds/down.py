@@ -1,7 +1,5 @@
 """compose_down - Stop services defined in compose.yaml."""
 
-from pathlib import Path
-
 from utils import (
     resolve_compose_path,
     parse_compose,
@@ -51,7 +49,7 @@ def _remove_orphans(compose_data: dict) -> None:
     project = compose_data["project"]
     unit_dir = get_unit_directory()
 
-    _remove_stale_files(
+    removed = _remove_stale_files(
         unit_dir,
         project,
         compose_data["service_names"],

@@ -1,4 +1,4 @@
-**podlet-compose**
+**quadlet-compose**
 
 - [Home](Home)
 - [Installation](Installation)

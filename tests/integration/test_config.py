@@ -1,4 +1,4 @@
-"""Integration tests for podlet-compose config command.
+"""Integration tests for quadlet-compose config command.
 
 Requires: podman, podlet, and systemd user session.
 Run with: pytest -m integration tests/integration/test_config.py
@@ -33,7 +33,7 @@ def _run(args, expected_rc=0, timeout=30):
 
 
 class TestConfigCommand:
-    """Test podlet-compose config command output."""
+    """Test quadlet-compose config command output."""
 
     def test_config_shows_project_name(self):
         compose_file = str(FIXTURES / "up_down" / "compose.yaml")

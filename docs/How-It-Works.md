@@ -14,7 +14,7 @@
 
 ## Non-Destructive Processing (Temp File)
 
-podlet-compose **never modifies your source compose file**. All transformations are applied to a temporary copy:
+quadlet-compose **never modifies your source compose file**. All transformations are applied to a temporary copy:
 
 1. The original `compose.yaml` is read into memory
 2. Enabled text-level hacks are applied (e.g. variable interpolation)

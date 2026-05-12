@@ -1,4 +1,4 @@
-"""Integration tests for podlet-compose up and down commands.
+"""Integration tests for quadlet-compose up and down commands.
 
 Requires: podman, podlet, and systemd user session.
 Run with: pytest -m integration tests/integration/test_up_down.py
@@ -59,26 +59,26 @@ def _cleanup(compose_file):
 
 
 class TestUpDown:
-    """Test podlet-compose up and down lifecycle."""
+    """Test quadlet-compose up and down lifecycle."""
 
     compose_file = str(FIXTURES / "up_down" / "compose.yaml")
 
     def test_up_creates_running_containers(self):
-        """podlet-compose up -d should create containers visible via podman ps."""
+        """quadlet-compose up -d should create containers visible via podman ps."""
         try:
             _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "up", "-d"])
             _wait_for_container("systemd-test-compose-web")
 
             result = _run(["podman", "ps", "--format", "{{.Names}}"])
             names = result.stdout.strip()
-            assert "test-compose-web" in names, (
-                f"Expected container names in podman ps output, got: {names}"
-            )
+            assert (
+                "test-compose-web" in names
+            ), f"Expected container names in podman ps output, got: {names}"
         finally:
             _cleanup(self.compose_file)
 
     def test_down_removes_containers(self):
-        """podlet-compose down should remove containers."""
+        """quadlet-compose down should remove containers."""
         try:
             _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "up", "-d"])
             _wait_for_container("systemd-test-compose-web")
@@ -88,12 +88,15 @@ class TestUpDown:
             time.sleep(3)
 
             # Verify containers are gone
-            _run(["podman", "container", "exists", "systemd-test-compose-web"], expected_rc=1)
+            _run(
+                ["podman", "container", "exists", "systemd-test-compose-web"],
+                expected_rc=1,
+            )
         finally:
             _cleanup(self.compose_file)
 
     def test_up_with_volumes(self):
-        """podlet-compose up with named volumes should create podman volumes."""
+        """quadlet-compose up with named volumes should create podman volumes."""
         compose_file = str(FIXTURES / "volumes" / "compose.yaml")
         try:
             _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
@@ -105,7 +108,7 @@ class TestUpDown:
             _cleanup(compose_file)
 
     def test_up_with_networks(self):
-        """podlet-compose up with networks should create podman networks."""
+        """quadlet-compose up with networks should create podman networks."""
         compose_file = str(FIXTURES / "networks" / "compose.yaml")
         try:
             _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
@@ -118,19 +121,21 @@ class TestUpDown:
             _cleanup(compose_file)
 
     def test_up_empty_services_no_error(self):
-        """podlet-compose up with empty services should not crash."""
+        """quadlet-compose up with empty services should not crash."""
         compose_file = str(FIXTURES / "empty_services" / "compose.yaml")
         _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
 
     def test_up_creates_bind_mount_dirs(self):
-        """podlet-compose up should auto-create missing bind mount host directories."""
+        """quadlet-compose up should auto-create missing bind mount host directories."""
         compose_file = str(FIXTURES / "bind_mounts" / "compose.yaml")
         fixture_dir = FIXTURES / "bind_mounts"
         html_dir = fixture_dir / "html"
         try:
             assert not html_dir.exists(), "html dir should not exist before test"
             _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
-            assert html_dir.is_dir(), "_ensure_bind_mount_dirs should have created html dir"
+            assert (
+                html_dir.is_dir()
+            ), "_ensure_bind_mount_dirs should have created html dir"
             _wait_for_container("systemd-bindmount-test-web")
             result = _run(["podman", "ps", "--format", "{{.Names}}"])
             assert "bindmount-test-web" in result.stdout.strip()

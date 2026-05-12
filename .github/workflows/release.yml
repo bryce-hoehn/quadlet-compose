@@ -113,13 +113,13 @@ jobs:
 
       - name: Rename binary
         run: |
-          mv dist/podlet_compose dist/podlet-compose-linux-${{ matrix.arch }}
+          mv dist/podlet_compose dist/quadlet-compose-linux-${{ matrix.arch }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: podlet-compose-linux-${{ matrix.arch }}
-          path: dist/podlet-compose-linux-${{ matrix.arch }}
+          name: quadlet-compose-linux-${{ matrix.arch }}
+          path: dist/quadlet-compose-linux-${{ matrix.arch }}
 
   # ------------------------------------------------------------------ #
   # 3. Build sdist/wheel and publish to PyPI                           #
@@ -170,9 +170,9 @@ jobs:
 
       - name: Create source archive
         run: |
-          git archive --format=zip --prefix="podlet-compose-${{ needs.prepare.outputs.version }}/" \
+          git archive --format=zip --prefix="quadlet-compose-${{ needs.prepare.outputs.version }}/" \
             "v${{ needs.prepare.outputs.version }}" \
-            -o release-assets/podlet-compose-${{ needs.prepare.outputs.version }}-source.zip
+            -o release-assets/quadlet-compose-${{ needs.prepare.outputs.version }}-source.zip
 
       - name: Generate checksums
         run: |

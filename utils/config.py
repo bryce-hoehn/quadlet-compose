@@ -1,4 +1,4 @@
-"""Path configuration for podlet-compose."""
+"""Path configuration for quadlet-compose."""
 
 from pathlib import Path
 

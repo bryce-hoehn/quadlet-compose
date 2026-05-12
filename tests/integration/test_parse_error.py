@@ -1,4 +1,4 @@
-"""Integration tests for podlet-compose error handling on malformed YAML.
+"""Integration tests for quadlet-compose error handling on malformed YAML.
 
 Requires: podman, podlet, and systemd user session.
 Run with: pytest -m integration tests/integration/test_parse_error.py
@@ -33,7 +33,7 @@ def _run(args, expected_rc=0, timeout=30):
 
 
 class TestParseError:
-    """Test podlet-compose behavior with malformed YAML files."""
+    """Test quadlet-compose behavior with malformed YAML files."""
 
     def test_malformed_yaml_returns_nonzero(self):
         bad_file = str(FIXTURES / "parse_error" / "compose-error.yaml")

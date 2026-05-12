@@ -1,4 +1,4 @@
-"""Shared utilities for podlet-compose."""
+"""Shared utilities for quadlet-compose."""
 
 import os
 import subprocess

@@ -3,8 +3,8 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "podlet-compose"
-version = "0.2.2"
+name = "quadlet-compose"
+version = "0.2.1"
 description = "A thin wrapper around podlet that acts as a drop-in for docker/podman-compose"
 readme = "README.md"
 license = "MIT"
@@ -18,7 +18,7 @@ dependencies = [
 dev = ["pytest", "pytest-timeout"]
 
 [project.scripts]
-podlet-compose = "podlet_compose:main"
+quadlet-compose = "podlet_compose:main"
 
 [tool.setuptools]
 py-modules = ["podlet_compose"]

@@ -1,15 +1,15 @@
 # Hacks (Podlet Workarounds)
 
-podlet-compose includes workarounds for known podlet limitations and compose file transformations. **All hacks are enabled by default** — your compose file is automatically transformed before being passed to podlet.
+quadlet-compose includes workarounds for known podlet limitations and compose file transformations. **All hacks are enabled by default** — your compose file is automatically transformed before being passed to podlet.
 
 Disable hacks via the `PODLET_COMPOSE_HACKS` environment variable:
 
 ```bash
 # Disable all hacks
-PODLET_COMPOSE_HACKS=false podlet-compose up
+PODLET_COMPOSE_HACKS=false quadlet-compose up
 
 # All hacks enabled (default)
-podlet-compose up
+quadlet-compose up
 ```
 
 ## Available Hacks

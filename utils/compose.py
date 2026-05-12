@@ -70,7 +70,7 @@ def prepare_compose(compose_path: Path) -> Path:
     tmp = tempfile.NamedTemporaryFile(
         mode="w",
         suffix=compose_path.suffix,
-        prefix="podlet-compose-",
+        prefix="quadlet-compose-",
         delete=False,
     )
     ryaml.dump(data, tmp)

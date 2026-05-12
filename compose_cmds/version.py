@@ -4,10 +4,10 @@ from importlib.metadata import PackageNotFoundError, version
 
 
 def compose_version(**_kwargs) -> None:
-    """Print the podlet-compose version."""
+    """Print the quadlet-compose version."""
     try:
-        v = version("podlet-compose")
+        v = version("quadlet-compose")
     except PackageNotFoundError:
-        print("podlet-compose (development)")
+        print("quadlet-compose (development)")
         return
-    print(f"podlet-compose version {v}")
+    print(f"quadlet-compose version {v}")

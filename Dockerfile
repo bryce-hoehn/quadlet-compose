@@ -31,5 +31,5 @@ RUN pyinstaller --onefile --clean podlet_compose.py
 RUN mkdir -p /result
 
 # Export binary with host user ownership
-RUN cp /app/dist/podlet_compose /result/podlet-compose \
-    && chown ${USER_ID}:${GROUP_ID} /result/podlet-compose
+RUN cp /app/dist/podlet_compose /result/quadlet-compose \
+    && chown ${USER_ID}:${GROUP_ID} /result/quadlet-compose
