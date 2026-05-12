@@ -60,11 +60,17 @@ def _remove_stale_files(
     current_services: list[str],
     current_volumes: list[str],
     current_networks: list[str],
-) -> None:
-    """Remove quadlet files for services/volumes/networks no longer in the compose file."""
+) -> list[str]:
+    """Remove quadlet files and containers for services no longer in compose.
+
+    For ``.container`` / ``.build`` files the corresponding podman container
+    is force-removed so the pod will not restart it on the next ``up``.
+
+    Returns a list of removed file names.
+    """
     current_bases = {f"{project}-{svc}" for svc in current_services}
-    current_bases.update(current_volumes)
-    current_bases.update(current_networks)
+    current_bases.update(f"{project}-{v}" for v in current_volumes)
+    current_bases.update(f"{project}-{n}" for n in current_networks)
     current_bases.add(f"{project}-pod")
     current_bases.add(f"{project}.pod")
     current_bases.add(f"{project}.kube")
@@ -85,8 +91,19 @@ def _remove_stale_files(
             stale.append(f)
 
     for f in stale:
-        run_cmd(["systemctl", "--user", "stop", f.stem], quiet=True)
+        _console.print(f'Removing orphan container "{f.stem}"')
+        try:
+            run_cmd(["systemctl", "--user", "stop", f.stem], quiet=True)
+        except ComposeError:
+            pass
+        if f.suffix in (".container", ".build"):
+            try:
+                run_cmd(["podman", "rm", "--force", f.stem], quiet=True)
+            except ComposeError:
+                pass
         f.unlink()
+
+    return [f.name for f in stale]
 
 
 def compose_up(
@@ -136,7 +153,7 @@ def compose_up(
     unit_dir = get_unit_directory()
 
     if remove_orphans:
-        _remove_stale_files(
+        removed = _remove_stale_files(
             unit_dir,
             project,
             compose_data["service_names"],
