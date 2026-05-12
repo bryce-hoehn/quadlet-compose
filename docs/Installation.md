@@ -86,11 +86,17 @@ To use in a NixOS config, add the flake input and reference the package. Example
 ### Podman
 
 ```nix
-  virtualisation.podman = {
-    enable = true;
-    dockerCompat = true; # optional, aliases docker -> podman
-    dockerSocket.enable = false; # optional, defaults to false
-    defaultNetwork.settings.dns_enabled = true; # i forget
+  virtualisation.containers.enable = true;
+  virtualisation = {
+    podman = {
+      enable = true;
+
+      # Create a `docker` alias for podman, to use it as a drop-in replacement
+      dockerCompat = true;
+
+      # Required for containers under podman-compose to be able to talk to each other.
+      defaultNetwork.settings.dns_enabled = true;
+    };
   };
 ```
 
@@ -101,7 +107,7 @@ Make quadlet-compose the default podman compose provider.
 ```nix
   virtualisation.containers.containersConf.settings = {
     containers = {
-      userns = "keep-id"; # probably optional?
+      userns = "keep-id"; # recommended. if you don't know what this does, keep it.
     };
     engine = {
       compose_providers = ["quadlet-compose"]; # set quadlet-compose as podman compose provider
@@ -118,8 +124,6 @@ Required for autostarting services.
   users.users.bryce = {
     isNormalUser = true;
     extraGroups = [ "wheel" "podman" ];
-    shell = pkgs.fish; # unrelated but fish is great
     linger = true; # <---
-    autoSubUidGidRange = true; # i forget what this does
   };
 ```
