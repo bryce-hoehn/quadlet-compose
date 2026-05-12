@@ -109,11 +109,11 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build with PyInstaller
-        run: pyinstaller --onefile --clean podlet_compose.py
+        run: pyinstaller --onefile --clean quadlet_compose.py
 
       - name: Rename binary
         run: |
-          mv dist/podlet_compose dist/quadlet-compose-linux-${{ matrix.arch }}
+          mv dist/quadlet_compose dist/quadlet-compose-linux-${{ matrix.arch }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
