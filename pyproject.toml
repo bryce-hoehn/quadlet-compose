@@ -18,10 +18,10 @@ dependencies = [
 dev = ["pytest", "pytest-timeout"]
 
 [project.scripts]
-quadlet-compose = "podlet_compose:main"
+quadlet-compose = "quadlet_compose:main"
 
 [tool.setuptools]
-py-modules = ["podlet_compose"]
+py-modules = ["quadlet_compose"]
 packages = ["compose_cmds", "hacks", "utils"]
 
 [tool.pytest.ini_options]

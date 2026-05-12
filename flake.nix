@@ -71,7 +71,7 @@
 
           shellHook = ''
             echo "quadlet-compose dev shell"
-            echo "Run: python podlet_compose.py --help"
+            echo "Run: python quadlet_compose.py --help"
           '';
         };
       }

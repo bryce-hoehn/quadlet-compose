@@ -12,7 +12,7 @@ from tests.conftest import PROJECT_ROOT
 
 pytestmark = pytest.mark.integration
 
-PODLET_COMPOSE = str(PROJECT_ROOT / "podlet_compose.py")
+QUADLET_COMPOSE = str(PROJECT_ROOT / "quadlet_compose.py")
 FIXTURES = PROJECT_ROOT / "tests" / "integration" / "fixtures"
 
 
@@ -38,7 +38,7 @@ class TestParseError:
     def test_malformed_yaml_returns_nonzero(self):
         bad_file = str(FIXTURES / "parse_error" / "compose-error.yaml")
         result = subprocess.run(
-            ["python", PODLET_COMPOSE, "-f", bad_file, "config"],
+            ["python", QUADLET_COMPOSE, "-f", bad_file, "config"],
             capture_output=True,
             text=True,
         )
@@ -46,4 +46,4 @@ class TestParseError:
 
     def test_valid_yaml_succeeds(self):
         good_file = str(FIXTURES / "up_down" / "compose.yaml")
-        _run(["python", PODLET_COMPOSE, "-f", good_file, "config"])
+        _run(["python", QUADLET_COMPOSE, "-f", good_file, "config"])

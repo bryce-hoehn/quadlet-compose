@@ -19,7 +19,6 @@ from utils.compose import (
 )
 from utils.utils import ComposeError
 
-
 # ---------------------------------------------------------------------------
 # parse_compose
 # ---------------------------------------------------------------------------
@@ -160,7 +159,9 @@ class TestGetBuildServices:
         assert result == {"app": {"context": "./dir"}}
 
     def test_extracts_dict_build(self):
-        data = {"services": {"app": {"build": {"context": ".", "dockerfile": "Dockerfile"}}}}
+        data = {
+            "services": {"app": {"build": {"context": ".", "dockerfile": "Dockerfile"}}}
+        }
         result = get_build_services(data)
         assert result == {"app": {"context": ".", "dockerfile": "Dockerfile"}}
 
@@ -346,8 +347,8 @@ class TestPrepareCompose:
     """Tests for prepare_compose with hacks enabled/disabled."""
 
     def test_all_hacks_applied_by_default(self, tmp_path, monkeypatch):
-        """When PODLET_COMPOSE_HACKS is unset, all hacks are applied."""
-        monkeypatch.delenv("PODLET_COMPOSE_HACKS", raising=False)
+        """When QUADLET_COMPOSE_HACKS is unset, all hacks are applied."""
+        monkeypatch.delenv("QUADLET_COMPOSE_HACKS", raising=False)
         monkeypatch.setenv("TEST_IMAGE", "nginx:alpine")
         compose_file = tmp_path / "compose.yaml"
         compose_file.write_text(
@@ -363,8 +364,8 @@ class TestPrepareCompose:
             result_path.unlink(missing_ok=True)
 
     def test_false_disables_all_hacks(self, tmp_path, monkeypatch):
-        """PODLET_COMPOSE_HACKS=false disables every hack."""
-        monkeypatch.setenv("PODLET_COMPOSE_HACKS", "false")
+        """QUADLET_COMPOSE_HACKS=false disables every hack."""
+        monkeypatch.setenv("QUADLET_COMPOSE_HACKS", "false")
         compose_file = tmp_path / "compose.yaml"
         compose_file.write_text(
             "services:\n  web:\n    image: ${TEST_IMAGE}\nx-custom: foo\n"
@@ -379,7 +380,7 @@ class TestPrepareCompose:
             result_path.unlink(missing_ok=True)
 
     def test_interpolates_env_vars_by_default(self, tmp_path, monkeypatch):
-        monkeypatch.delenv("PODLET_COMPOSE_HACKS", raising=False)
+        monkeypatch.delenv("QUADLET_COMPOSE_HACKS", raising=False)
         monkeypatch.setenv("TEST_IMAGE", "nginx:alpine")
         compose_file = tmp_path / "compose.yaml"
         compose_file.write_text(
@@ -394,7 +395,7 @@ class TestPrepareCompose:
 
     def test_strips_extensions_by_default(self, tmp_path, monkeypatch):
         """x-* keys are removed by default."""
-        monkeypatch.delenv("PODLET_COMPOSE_HACKS", raising=False)
+        monkeypatch.delenv("QUADLET_COMPOSE_HACKS", raising=False)
         compose_file = tmp_path / "compose.yaml"
         compose_file.write_text(
             "name: test\nservices:\n  web:\n    image: nginx\nx-custom: foo\n"
@@ -407,7 +408,7 @@ class TestPrepareCompose:
             result_path.unlink(missing_ok=True)
 
     def test_uses_dotenv_values_by_default(self, tmp_path, monkeypatch):
-        monkeypatch.delenv("PODLET_COMPOSE_HACKS", raising=False)
+        monkeypatch.delenv("QUADLET_COMPOSE_HACKS", raising=False)
         monkeypatch.delenv("MY_IMAGE", raising=False)
         (tmp_path / ".env").write_text("MY_IMAGE=redis:alpine\n")
         compose_file = tmp_path / "compose.yaml"

@@ -13,7 +13,7 @@ from tests.conftest import PROJECT_ROOT
 
 pytestmark = pytest.mark.integration
 
-PODLET_COMPOSE = str(PROJECT_ROOT / "podlet_compose.py")
+QUADLET_COMPOSE = str(PROJECT_ROOT / "quadlet_compose.py")
 FIXTURES = PROJECT_ROOT / "tests" / "integration" / "fixtures"
 
 
@@ -51,7 +51,7 @@ def _wait_for_container(name, timeout=30):
 def _cleanup(compose_file):
     """Best-effort cleanup — don't fail if down doesn't work."""
     subprocess.run(
-        ["python", PODLET_COMPOSE, "-f", compose_file, "down"],
+        ["python", QUADLET_COMPOSE, "-f", compose_file, "down"],
         capture_output=True,
         text=True,
         timeout=30,
@@ -66,7 +66,7 @@ class TestUpDown:
     def test_up_creates_running_containers(self):
         """quadlet-compose up -d should create containers visible via podman ps."""
         try:
-            _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "up", "-d"])
+            _run(["python", QUADLET_COMPOSE, "-f", self.compose_file, "up", "-d"])
             _wait_for_container("systemd-test-compose-web")
 
             result = _run(["podman", "ps", "--format", "{{.Names}}"])
@@ -80,11 +80,11 @@ class TestUpDown:
     def test_down_removes_containers(self):
         """quadlet-compose down should remove containers."""
         try:
-            _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "up", "-d"])
+            _run(["python", QUADLET_COMPOSE, "-f", self.compose_file, "up", "-d"])
             _wait_for_container("systemd-test-compose-web")
 
             # Down
-            _run(["python", PODLET_COMPOSE, "-f", self.compose_file, "down"])
+            _run(["python", QUADLET_COMPOSE, "-f", self.compose_file, "down"])
             time.sleep(3)
 
             # Verify containers are gone
@@ -99,7 +99,7 @@ class TestUpDown:
         """quadlet-compose up with named volumes should create podman volumes."""
         compose_file = str(FIXTURES / "volumes" / "compose.yaml")
         try:
-            _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
+            _run(["python", QUADLET_COMPOSE, "-f", compose_file, "up", "-d"])
             _wait_for_container("systemd-volumes-test-db")
 
             result = _run(["podman", "volume", "exists", "pgdata"])
@@ -111,7 +111,7 @@ class TestUpDown:
         """quadlet-compose up with networks should create podman networks."""
         compose_file = str(FIXTURES / "networks" / "compose.yaml")
         try:
-            _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
+            _run(["python", QUADLET_COMPOSE, "-f", compose_file, "up", "-d"])
             _wait_for_container("systemd-networks-test-web")
 
             result = _run(["podman", "ps", "--format", "{{.Names}}"])
@@ -123,7 +123,7 @@ class TestUpDown:
     def test_up_empty_services_no_error(self):
         """quadlet-compose up with empty services should not crash."""
         compose_file = str(FIXTURES / "empty_services" / "compose.yaml")
-        _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
+        _run(["python", QUADLET_COMPOSE, "-f", compose_file, "up", "-d"])
 
     def test_up_creates_bind_mount_dirs(self):
         """quadlet-compose up should auto-create missing bind mount host directories."""
@@ -132,7 +132,7 @@ class TestUpDown:
         html_dir = fixture_dir / "html"
         try:
             assert not html_dir.exists(), "html dir should not exist before test"
-            _run(["python", PODLET_COMPOSE, "-f", compose_file, "up", "-d"])
+            _run(["python", QUADLET_COMPOSE, "-f", compose_file, "up", "-d"])
             assert (
                 html_dir.is_dir()
             ), "_ensure_bind_mount_dirs should have created html dir"

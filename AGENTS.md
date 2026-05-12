@@ -5,7 +5,7 @@ A thin wrapper around [podlet](https://github.com/containers/podlet) that acts a
 ## Architecture
 
 ```
-podlet_compose.py        # CLI entry point (argparse + rich)
+quadlet_compose.py        # CLI entry point (argparse + rich)
 ├── compose_cmds/        # One module per docker-compose command
 │   ├── up.py            #   podlet compose → quadlet files → systemctl start
 │   ├── down.py          #   systemctl stop → rm quadlet files → podman pod rm
@@ -64,14 +64,14 @@ stdout = result.stdout
 
 1. Create `compose_cmds/<command>.py` with a `compose_<command>(compose_file, **kwargs)` function
 2. Import and register it in `compose_cmds/__init__.py`
-3. Add the CLI entry in `podlet_compose.py`
+3. Add the CLI entry in `quadlet_compose.py`
 4. Add unit tests in `tests/unit/`
 
 ### Adding a new hack
 
 1. Create `hacks/<name>.py` with a function that transforms compose data
 2. Register it in `hacks/__init__.py`
-3. Add it to the `PODLET_COMPOSE_HACKS` env var handling
+3. Add it to the `QUADLET_COMPOSE_HACKS` env var handling
 4. Add tests in `tests/unit/`
 
 ## CI Notes

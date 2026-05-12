@@ -54,11 +54,11 @@ Commands:
 
 ## Hacks (Podlet Workarounds)
 
-All compose file transformations are **enabled by default**. Disable them via `PODLET_COMPOSE_HACKS`:
+All compose file transformations are **enabled by default**. Disable them via `QUADLET_COMPOSE_HACKS`:
 
 ```bash
 # Disable all hacks
-PODLET_COMPOSE_HACKS=false quadlet-compose up
+QUADLET_COMPOSE_HACKS=false quadlet-compose up
 ```
 
 Available hacks: `interpolate`, `name_inject`, `normalize`, `expand`, `strip_extensions`. See the [Hacks](https://github.com/bryce-hoehn/quadlet-compose/wiki/Hacks) wiki page for details.

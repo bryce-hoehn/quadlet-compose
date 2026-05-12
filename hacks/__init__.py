@@ -2,7 +2,7 @@
 
 Each hack is a self-contained module that transforms compose data to work
 around podlet limitations.  All hacks are enabled by default.  Set
-``PODLET_COMPOSE_HACKS=false`` to disable them all.
+``QUADLET_COMPOSE_HACKS=false`` to disable them all.
 
 Available hacks:
 
@@ -17,7 +17,7 @@ Available hacks:
 
 Example::
 
-    PODLET_COMPOSE_HACKS=false quadlet-compose up
+    QUADLET_COMPOSE_HACKS=false quadlet-compose up
 """
 
 import importlib
@@ -88,9 +88,9 @@ ALL_HACKS = {**TEXT_HACKS, **DICT_HACKS}
 def _hacks_enabled() -> bool:
     """Return whether hacks are enabled.
 
-    Defaults to ``True``.  Set ``PODLET_COMPOSE_HACKS=false`` to disable.
+    Defaults to ``True``.  Set ``QUADLET_COMPOSE_HACKS=false`` to disable.
     """
-    raw = os.environ.get("PODLET_COMPOSE_HACKS", "").strip().lower()
+    raw = os.environ.get("QUADLET_COMPOSE_HACKS", "").strip().lower()
     return raw not in ("false", "0", "no")
 
 

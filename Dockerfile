@@ -25,11 +25,11 @@ RUN pip install pyinstaller
 RUN pip install -r requirements.txt
 
 # Create a binary with PyInstaller
-RUN pyinstaller --onefile --clean podlet_compose.py
+RUN pyinstaller --onefile --clean quadlet_compose.py
 
 # Create /result dir in case it is not mounted
 RUN mkdir -p /result
 
 # Export binary with host user ownership
-RUN cp /app/dist/podlet_compose /result/quadlet-compose \
+RUN cp /app/dist/quadlet_compose /result/quadlet-compose \
     && chown ${USER_ID}:${GROUP_ID} /result/quadlet-compose

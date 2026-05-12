@@ -12,7 +12,7 @@ from tests.conftest import PROJECT_ROOT
 
 pytestmark = pytest.mark.integration
 
-PODLET_COMPOSE = str(PROJECT_ROOT / "podlet_compose.py")
+QUADLET_COMPOSE = str(PROJECT_ROOT / "quadlet_compose.py")
 FIXTURES = PROJECT_ROOT / "tests" / "integration" / "fixtures"
 
 
@@ -37,29 +37,29 @@ class TestConfigCommand:
 
     def test_config_shows_project_name(self):
         compose_file = str(FIXTURES / "up_down" / "compose.yaml")
-        result = _run(["python", PODLET_COMPOSE, "-f", compose_file, "config"])
+        result = _run(["python", QUADLET_COMPOSE, "-f", compose_file, "config"])
         assert "name: test-compose" in result.stdout
 
     def test_config_shows_service_names(self):
         compose_file = str(FIXTURES / "networks" / "compose.yaml")
-        result = _run(["python", PODLET_COMPOSE, "-f", compose_file, "config"])
+        result = _run(["python", QUADLET_COMPOSE, "-f", compose_file, "config"])
         assert "web" in result.stdout
         assert "app" in result.stdout
 
     def test_config_shows_volumes(self):
         compose_file = str(FIXTURES / "volumes" / "compose.yaml")
-        result = _run(["python", PODLET_COMPOSE, "-f", compose_file, "config"])
+        result = _run(["python", QUADLET_COMPOSE, "-f", compose_file, "config"])
         assert "volumes:" in result.stdout
         assert "pgdata" in result.stdout
 
     def test_config_shows_networks(self):
         compose_file = str(FIXTURES / "networks" / "compose.yaml")
-        result = _run(["python", PODLET_COMPOSE, "-f", compose_file, "config"])
+        result = _run(["python", QUADLET_COMPOSE, "-f", compose_file, "config"])
         assert "networks:" in result.stdout
         assert "frontend" in result.stdout
         assert "backend" in result.stdout
 
     def test_config_empty_services(self):
         compose_file = str(FIXTURES / "empty_services" / "compose.yaml")
-        result = _run(["python", PODLET_COMPOSE, "-f", compose_file, "config"])
+        result = _run(["python", QUADLET_COMPOSE, "-f", compose_file, "config"])
         assert "name: empty-services" in result.stdout

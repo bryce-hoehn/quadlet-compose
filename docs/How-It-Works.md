@@ -27,7 +27,7 @@ This ensures your source files remain untouched regardless of what transformatio
 
 ## Hacks (Podlet Workarounds)
 
-All compose file transformations are **enabled by default**. Set ``PODLET_COMPOSE_HACKS=false`` to disable them. See the [Hacks](Hacks) page for full details.
+All compose file transformations are **enabled by default**. Set ``QUADLET_COMPOSE_HACKS=false`` to disable them. See the [Hacks](Hacks) page for full details.
 
 Available hacks:
 
