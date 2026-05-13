@@ -1,2 +1,2 @@
 rich
-ruamel.yaml
+compose-spec

@@ -19,7 +19,6 @@ from compose_cmds import (
     compose_config,
     compose_convert,
 )
-from utils import ComposeError
 
 
 def print_help() -> None:
@@ -162,7 +161,6 @@ def main() -> None:
     # Global options
     parser.add_argument("-f", "--file", dest="compose_file", default=None)
     parser.add_argument("-p", "--project-name", dest="project_name", default=None)
-    parser.add_argument("--dry-run", action="store_true", dest="dry_run")
     parser.add_argument("-h", "--help", action="store_true", dest="show_help")
 
     subparsers = parser.add_subparsers(dest="command")
@@ -181,12 +179,6 @@ def main() -> None:
         print_help()
         sys.exit(0)
 
-    # Enable dry-run mode globally
-    if args.dry_run:
-        import utils.utils as _utils
-
-        _utils.DRY_RUN = True
-
     try:
         args.func(
             compose_file=args.compose_file,
@@ -194,7 +186,7 @@ def main() -> None:
             detach=getattr(args, "detach", False),
             remove_orphans=getattr(args, "remove_orphans", False),
         )
-    except (ComposeError, ValueError) as e:
+    except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 

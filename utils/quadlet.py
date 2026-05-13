@@ -1,5 +1,3 @@
-"""Path configuration for quadlet-compose."""
-
 from pathlib import Path
 
 
