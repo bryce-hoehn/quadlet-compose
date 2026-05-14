@@ -13,7 +13,7 @@
 
         pythonDeps = with pkgs.python312Packages; [
           pydantic
-          pyyaml
+          ryaml
           rich
         ];
 
