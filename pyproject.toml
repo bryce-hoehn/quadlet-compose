@@ -31,3 +31,20 @@ pythonpath = ["."]
 markers = [
     "integration: marks tests that require podman, podlet, and systemd (deselect with '-m \"not integration\"')",
 ]
+
+[tool.datamodel-codegen]
+input = "compose-spec.json"
+input-file-type = "jsonschema"
+output = "models/compose.py"
+output-model-type = "pydantic_v2.BaseModel"
+extra-fields = "ignore"
+field-constraints = true
+snake-case-field = true
+target-python-version = "3.10"
+use-subclass-enum = true
+use-unique-items-as-set = true
+use-double-quotes = true
+disable-future-imports = true
+disable-timestamp = true
+naming-strategy = "parent-prefixed"
+use-type-alias = true

@@ -1,2 +1,3 @@
 rich
-compose-spec
+datamodel-code-generator[ruff]
+pyyaml[libyaml]
