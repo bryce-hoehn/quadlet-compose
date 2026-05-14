@@ -145,7 +145,8 @@ def convert_ports(value: Any) -> dict[str, Any]:
     if value is None:
         return {}
     ports: list[str] = []
-    for entry in _as_list(value):
+    entries = [value] if isinstance(value, str) else value
+    for entry in entries:
         if isinstance(entry, dict):
             target = entry.get("target")
             published = entry.get("published", "")
@@ -174,7 +175,8 @@ def convert_volumes(value: Any) -> dict[str, Any]:
     volumes: list[str] = []
     binds: list[str] = []
     tmpfs_list: list[str] = []
-    for entry in _as_list(value):
+    entries = [value] if isinstance(value, str) else value
+    for entry in entries:
         if isinstance(entry, dict):
             vtype = entry.get("type", "bind")
             source = entry.get("source", "")
