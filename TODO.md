@@ -22,11 +22,11 @@
   - **Bug fix:** Pod name mismatch — pod unit's `PodName` and container's `Pod` reference now both use `{project_name}-pod`
 - [x] Remove all `compose_spec` and `podlet` imports/references
   - `utils/mapping.py` → `from models.compose import ...`
-  - `utils/compose.py` → uses `yaml.safe_load()` + `ComposeSpecification.model_validate()`
+  - `utils/compose.py` → uses `yaml.load()` + `ComposeSpecification.model_validate()`
 - [x] Update project metadata
-  - `pyproject.toml` — license Apache-2.0, deps: pydantic + pyyaml + rich
-  - `requirements.txt` — pydantic, pyyaml[libyaml], rich
-  - `flake.nix` — remove podlet dep, add pyyaml, license = asl20
+  - `pyproject.toml` — license Apache-2.0, deps: pydantic + ryaml + rich
+  - `requirements.txt` — pydantic, ryaml[libyaml], rich
+  - `flake.nix` — remove podlet dep, add ryaml, license = asl20
   - `AGENTS.md` — updated architecture diagram and field map docs
   - `README.md` — cleaned up, Apache 2.0 license
 - [x] Fix `curl -o` command in `regenerate-models.yml` (was missing output filename)
@@ -96,7 +96,7 @@
   - [ ] `test_down.py` — systemctl stop → cleanup cycle
   - [ ] Requires: podman, systemd user session, lingering enabled
 
-### Command modules (`compose_cmds/`)
+### Command modules (`commands/`)
 
 - [ ] Verify all command modules work with new mapping layer
   - [ ] `up.py` — uses `map_compose()` → writes quadlet files → `systemctl start`
@@ -112,7 +112,7 @@
 - [ ] Verify `flake.nix` builds: `nix build`
 - [ ] Verify `nix flake check` passes
 - [ ] Add CI workflow for unit tests (run on PR)
-- [ ] Add `compose_cmds/__init__.py` if missing — register all commands
+- [ ] Add `commands/__init__.py` if missing — register all commands
 - [ ] Add `utils/converters/__init__.py` — re-export all converters
 - [ ] Add `utils/field_maps/__init__.py` — re-export all field maps
 
