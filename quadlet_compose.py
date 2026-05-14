@@ -4,7 +4,7 @@ import sys
 from rich.console import Console
 from rich.text import Text
 
-from compose_cmds import (
+from commands import (
     compose_up,
     compose_down,
     compose_build,
@@ -19,47 +19,6 @@ from compose_cmds import (
     compose_config,
     compose_convert,
 )
-
-
-def print_help() -> None:
-    """Print styled help output in docker-compose format using rich."""
-    console = Console()
-    console.print(
-        Text("Usage:", style="bold dark_orange"),
-        "quadlet-compose [OPTIONS] COMMAND",
-    )
-    console.print()
-    console.print(
-        "Generate systemd quadlet files from compose.yaml and manage services via systemctl."
-    )
-    console.print()
-    console.print("Options:", style="bold dark_orange")
-    console.print(
-        "     ",
-        Text("--dry-run", style="cyan"),
-        "       Print commands without executing",
-    )
-    console.print(
-        " ",
-        Text("-f, --file", style="cyan"),
-        "          Compose configuration files",
-    )
-    console.print(
-        " ",
-        Text("-h, --help", style="cyan"),
-        "          Print help information",
-    )
-    console.print(
-        " ",
-        Text("-p, --project-name", style="cyan"),
-        "  Specify an alternate project name",
-    )
-    console.print()
-    console.print("Commands:", style="bold dark_orange")
-    for cmd in COMMANDS:
-        console.print(" ", Text(f"{cmd['name']:<16}", style="cyan"), "   ", cmd["help"])
-    console.print()
-
 
 COMMANDS = [
     {
@@ -151,6 +110,46 @@ COMMANDS = [
 ]
 
 
+def print_help() -> None:
+    """Print styled help output in docker-compose format using rich."""
+    console = Console()
+    console.print(
+        Text("Usage:", style="bold dark_orange"),
+        "quadlet-compose [OPTIONS] COMMAND",
+    )
+    console.print()
+    console.print(
+        "Generate systemd quadlet files from compose.yaml and manage services via systemctl."
+    )
+    console.print()
+    console.print("Options:", style="bold dark_orange")
+    console.print(
+        "     ",
+        Text("--dry-run", style="cyan"),
+        "       Print commands without executing",
+    )
+    console.print(
+        " ",
+        Text("-f, --file", style="cyan"),
+        "          Compose configuration files",
+    )
+    console.print(
+        " ",
+        Text("-h, --help", style="cyan"),
+        "          Print help information",
+    )
+    console.print(
+        " ",
+        Text("-p, --project-name", style="cyan"),
+        "  Specify an alternate project name",
+    )
+    console.print()
+    console.print("Commands:", style="bold dark_orange")
+    for cmd in COMMANDS:
+        console.print(" ", Text(f"{cmd['name']:<16}", style="cyan"), "   ", cmd["help"])
+    console.print()
+
+
 def main() -> None:
     """Parse CLI arguments and dispatch to the appropriate compose command."""
     parser = argparse.ArgumentParser(
@@ -187,7 +186,8 @@ def main() -> None:
             remove_orphans=getattr(args, "remove_orphans", False),
         )
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        console = Console(stderr=True)
+        console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
 
 
