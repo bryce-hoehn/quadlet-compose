@@ -47,8 +47,8 @@ def convert_network_labels(value: Any) -> dict[str, Any]:
 def convert_network_ipam(value: Any) -> dict[str, Any]:
     """Convert compose network ``ipam`` config to quadlet fields.
 
-    Handles ``ipam.driver`` → ``Driver`` and ``ipam.config`` →
-    subnet/gateway options.
+    Handles ``ipam.driver`` → ``IPAMDriver`` and ``ipam.config`` →
+    ``Subnet`` / ``Gateway`` lists.
     """
     if value is None:
         return {}
@@ -56,15 +56,15 @@ def convert_network_ipam(value: Any) -> dict[str, Any]:
     if isinstance(value, dict):
         driver = value.get("driver")
         if driver:
-            result["Driver"] = str(driver)
+            result["IPAMDriver"] = str(driver)
         configs = value.get("config")
         if configs and isinstance(configs, list):
             for cfg in configs:
                 if isinstance(cfg, dict):
                     subnet = cfg.get("subnet")
                     if subnet:
-                        result.setdefault("Options", []).append(f"subnet={subnet}")
+                        result.setdefault("Subnet", []).append(str(subnet))
                     gateway = cfg.get("gateway")
                     if gateway:
-                        result.setdefault("Options", []).append(f"gateway={gateway}")
+                        result.setdefault("Gateway", []).append(str(gateway))
     return result
