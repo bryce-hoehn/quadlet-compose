@@ -63,6 +63,13 @@ def _apply_field_map(
         if value is None:
             continue
 
+        # Unwrap Pydantic models to plain dicts for converter compatibility.
+        # Converters expect primitive types (str, int, bool, list, dict),
+        # but Pydantic-validated compose models yield BaseModel instances
+        # for nested fields like healthcheck, logging, ipam, etc.
+        if isinstance(value, BaseModel):
+            value = value.model_dump(exclude_none=True)
+
         if converter is not None:
             converted = converter(value)
             if converted:
@@ -103,9 +110,12 @@ def map_service(
     if "Image" not in kwargs:
         if service.image:
             kwargs["Image"] = service.image
-        elif not service.build:
-            # No image and no build — this is an error in compose
-            kwargs["Image"] = service_name
+        else:
+            # No explicit image — use project-prefixed service name.
+            # For build services this matches the BuildUnit.ImageTag.
+            kwargs["Image"] = (
+                f"{project_name}-{service_name}" if project_name else service_name
+            )
 
     # Assign to pod if provided
     if pod_name:
