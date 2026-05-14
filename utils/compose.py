@@ -2,7 +2,6 @@ from pathlib import Path
 
 from compose_spec import PyCompose
 
-from .quadlet import get_unit_directory
 
 # Compose file search order (matches podlet's behavior)
 COMPOSE_FILE_NAMES = [
