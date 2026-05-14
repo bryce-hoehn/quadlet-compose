@@ -1,6 +1,6 @@
 # quadlet-compose
 
-A thin wrapper around [podlet](https://github.com/containers/podlet) that acts as a drop-in replacement for `docker-compose` / `podman-compose`. It uses podlet to generate systemd quadlet service files from a `compose.yaml` and manages them via `systemctl`.
+A Python-native compose→quadlet compiler that acts as a drop-in replacement for `docker-compose` / `podman-compose`. It parses `compose.yaml` files using [PyYAML](https://pypi.org/project/PyYAML/) and auto-generated [Pydantic](https://docs.pydantic.dev/) models from the [compose-spec](https://github.com/compose-spec/compose-spec) JSON Schema, translates them into Podman Quadlet unit files via a declarative mapping layer, and manages the resulting systemd services via `systemctl`.
 
 **Disclaimer** - This is currently only a **PROOF OF CONCEPT**. It has not been used in production and I do not recommend doing so.
 
@@ -46,22 +46,11 @@ Commands:
 
 ## Requirements
 
-- [podlet](https://github.com/containers/podlet) — generates quadlet files from compose configs
 - [podman](https://podman.io/) — container runtime
 - Python 3.10+
-- [rich](https://pypi.org/project/rich/)
-- [ruamel.yaml](https://pypi.org/project/ruamel.yaml/)
-
-## Hacks (Podlet Workarounds)
-
-All compose file transformations are **enabled by default**. Disable them via `QUADLET_COMPOSE_HACKS`:
-
-```bash
-# Disable all hacks
-QUADLET_COMPOSE_HACKS=false quadlet-compose up
-```
-
-Available hacks: `interpolate`, `name_inject`, `normalize`, `expand`, `strip_extensions`. See the [Hacks](https://github.com/bryce-hoehn/quadlet-compose/wiki/Hacks) wiki page for details.
+- [PyYAML](https://pypi.org/project/PyYAML/) — YAML parsing
+- [pydantic](https://pypi.org/project/pydantic/) — compose-spec model validation
+- [rich](https://pypi.org/project/rich/) — terminal output
 
 ## Documentation
 
@@ -70,12 +59,11 @@ Full documentation is available in the [GitHub Wiki](https://github.com/bryce-ho
 - **[Installation](https://github.com/bryce-hoehn/quadlet-compose/wiki/Installation)** — Pip, PyInstaller binary, Nix, and podman compose provider setup
 - **[Commands](https://github.com/bryce-hoehn/quadlet-compose/wiki/Commands)** — Full command reference
 - **[How It Works](https://github.com/bryce-hoehn/quadlet-compose/wiki/How-It-Works)** — Technical architecture and internals
-- **[Hacks](https://github.com/bryce-hoehn/quadlet-compose/wiki/Hacks)** — Podlet workarounds (enabled by default)
 - **[Limitations](https://github.com/bryce-hoehn/quadlet-compose/wiki/Limitations)** — Known limitations
 
 ## License
 
-GNU General Public License v3.0
+Apache License 2.0
 
 
 <a href="https://www.buymeacoffee.com/bhoehn" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>

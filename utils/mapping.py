@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from compose_spec.models import (
+from models.compose import (
     Network,
     Service,
     ServiceBuild,
@@ -278,7 +278,7 @@ def map_compose(
     Returns:
         A ``QuadletBundle`` containing all generated quadlet units.
     """
-    from compose_spec.models import ComposeSpecification
+    from models.compose import ComposeSpecification
 
     spec = ComposeSpecification.model_validate(compose_data)
     bundle = QuadletBundle()

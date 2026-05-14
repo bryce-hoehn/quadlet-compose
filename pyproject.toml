@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "quadlet-compose"
 version = "0.2.1"
-description = "A thin wrapper around podlet that acts as a drop-in for docker/podman-compose"
+description = "A Python-native compose→quadlet compiler that acts as a drop-in for docker/podman-compose"
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 requires-python = ">=3.10"
 dependencies = [
     "pydantic",
+    "pyyaml",
     "rich",
-    "ruamel.yaml",
 ]
 
 [project.optional-dependencies]
@@ -23,13 +23,13 @@ quadlet-compose = "quadlet_compose:main"
 
 [tool.setuptools]
 py-modules = ["quadlet_compose"]
-packages = ["compose_cmds", "hacks", "utils"]
+packages = ["compose_cmds", "models", "models.quadlet", "utils", "utils.converters", "utils.field_maps"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
-    "integration: marks tests that require podman, podlet, and systemd (deselect with '-m \"not integration\"')",
+    "integration: marks tests that require podman and systemd (deselect with '-m \"not integration\"')",
 ]
 
 [tool.datamodel-codegen]

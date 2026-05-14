@@ -1,9 +1,10 @@
 from pathlib import Path
 
-from compose_spec import PyCompose
+import yaml
+from models.compose import ComposeSpecification
 
 
-# Compose file search order (matches podlet's behavior)
+# Compose file search order (matches podman-compose behavior)
 COMPOSE_FILE_NAMES = [
     "compose.yaml",
     "compose.yml",
@@ -21,7 +22,7 @@ class ComposeError(Exception):
 def resolve_compose_path(compose_file: str | None) -> Path:
     """Resolve the compose file path.
 
-    If compose_file is None, searches the CWD following podlet's search order.
+    If compose_file is None, searches the CWD following standard search order.
     Raises FileNotFoundError if no compose file is found.
     """
     if compose_file:
@@ -38,6 +39,17 @@ def resolve_compose_path(compose_file: str | None) -> Path:
 
 
 def parse_compose(compose_path: Path) -> dict:
-    c = PyCompose.from_yaml(compose_path)
-    d = c.to_dict()
-    return d
+    """Parse a compose file using PyYAML and validate with Pydantic models.
+
+    Returns the raw dict (validated) for use by the mapping layer.
+    """
+    with open(compose_path) as f:
+        data = yaml.safe_load(f)
+
+    if data is None:
+        raise ComposeError(f"Compose file is empty: {compose_path}")
+
+    # Validate against compose-spec Pydantic models
+    ComposeSpecification.model_validate(data)
+
+    return data
