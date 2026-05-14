@@ -1,11 +1,13 @@
 """Pydantic model for a Podman Quadlet image unit file (podman-image.unit(5))."""
 
-from typing import Literal
+from typing import ClassVar, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field
+
+from ._base import QuadletUnit
 
 
-class ImageUnit(BaseModel):
+class ImageUnit(QuadletUnit):
     """Represents the ``[Image]`` section of a ``.image`` Quadlet unit file.
 
     Each field maps to a Quadlet ``[Image]`` key and its corresponding
@@ -13,6 +15,29 @@ class ImageUnit(BaseModel):
 
     Reference: https://docs.podman.io/en/latest/markdown/podman-image.unit.5.html
     """
+
+    _section: ClassVar[str] = "Image"
+    _scalar_fields: ClassVar[tuple[str, ...]] = (
+        "AllTags",
+        "Arch",
+        "AuthFile",
+        "CertDir",
+        "Creds",
+        "DecryptionKey",
+        "Image",
+        "ImageTag",
+        "OS",
+        "Policy",
+        "Retry",
+        "RetryDelay",
+        "TLSVerify",
+        "Variant",
+    )
+    _list_fields: ClassVar[tuple[str, ...]] = (
+        "ContainersConfModule",
+        "GlobalArgs",
+        "PodmanArgs",
+    )
 
     # -- containers.conf -------------------------------------------------------
 
@@ -152,69 +177,3 @@ class ImageUnit(BaseModel):
             "command. Space-separated per entry; may be listed multiple times."
         ),
     )
-
-    # -- Validators ------------------------------------------------------------
-
-    @field_validator(
-        "ContainersConfModule",
-        "GlobalArgs",
-        "PodmanArgs",
-        mode="before",
-    )
-    @classmethod
-    def _coerce_list(cls, v: str | list[str] | None) -> list[str] | None:
-        """Allow a single string to be used where a list is expected."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            return [v]
-        return v
-
-    # -- Serialisation helpers -------------------------------------------------
-
-    def to_quadlet(self) -> str:
-        """Render the model as a Quadlet ``.image`` unit file string.
-
-        Only non-``None`` fields are emitted. List fields produce one
-        line per element.
-
-        Returns:
-            The complete ``[Image]`` unit file content **without** a trailing
-            newline.
-        """
-        lines: list[str] = ["[Image]"]
-
-        _scalar_fields = (
-            "AllTags",
-            "Arch",
-            "AuthFile",
-            "CertDir",
-            "Creds",
-            "DecryptionKey",
-            "Image",
-            "ImageTag",
-            "OS",
-            "Policy",
-            "Retry",
-            "RetryDelay",
-            "TLSVerify",
-            "Variant",
-        )
-        _list_fields = (
-            "ContainersConfModule",
-            "GlobalArgs",
-            "PodmanArgs",
-        )
-
-        for field_name in _scalar_fields:
-            value = getattr(self, field_name, None)
-            if value is not None:
-                lines.append(f"{field_name}={value}")
-
-        for field_name in _list_fields:
-            values = getattr(self, field_name, None)
-            if values:
-                for value in values:
-                    lines.append(f"{field_name}={value}")
-
-        return "\n".join(lines)

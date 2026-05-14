@@ -1,11 +1,13 @@
 """Pydantic model for a Podman Quadlet pod unit file (podman-pod.unit(5))."""
 
-from typing import Literal
+from typing import ClassVar, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field
+
+from ._base import QuadletUnit
 
 
-class PodUnit(BaseModel):
+class PodUnit(QuadletUnit):
     """Represents the [Pod] section of a ``.pod`` Quadlet unit file.
 
     Each field maps to a Quadlet ``[Pod]`` key and its corresponding
@@ -13,6 +15,36 @@ class PodUnit(BaseModel):
 
     Reference: https://docs.podman.io/en/latest/markdown/podman-pod.unit.5.html
     """
+
+    _section: ClassVar[str] = "Pod"
+    _scalar_fields: ClassVar[tuple[str, ...]] = (
+        "HostName",
+        "IP",
+        "IP6",
+        "PodName",
+        "ServiceName",
+        "ExitPolicy",
+        "UserNS",
+        "SubGIDMap",
+        "SubUIDMap",
+        "ShmSize",
+    )
+    _list_fields: ClassVar[tuple[str, ...]] = (
+        "AddHost",
+        "DNS",
+        "DNSOption",
+        "DNSSearch",
+        "Network",
+        "NetworkAlias",
+        "PublishPort",
+        "GIDMap",
+        "UIDMap",
+        "Label",
+        "Volume",
+        "ContainersConfModule",
+        "GlobalArgs",
+        "PodmanArgs",
+    )
 
     # -- Host resolution -------------------------------------------------------
 
@@ -202,87 +234,3 @@ class PodUnit(BaseModel):
             "command. Space-separated per entry; may be listed multiple times."
         ),
     )
-
-    # -- Validators ------------------------------------------------------------
-
-    @field_validator(
-        "AddHost",
-        "DNS",
-        "DNSOption",
-        "DNSSearch",
-        "Network",
-        "NetworkAlias",
-        "PublishPort",
-        "GIDMap",
-        "UIDMap",
-        "Label",
-        "Volume",
-        "ContainersConfModule",
-        "GlobalArgs",
-        "PodmanArgs",
-        mode="before",
-    )
-    @classmethod
-    def _coerce_list(cls, v: str | list[str] | None) -> list[str] | None:
-        """Allow a single string to be used where a list is expected."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            return [v]
-        return v
-
-    # -- Serialisation helpers -------------------------------------------------
-
-    def to_quadlet(self) -> str:
-        """Render the model as a Quadlet ``.pod`` unit file string.
-
-        Only non-``None`` fields are emitted. List fields produce one
-        line per element.
-
-        Returns:
-            The complete ``[Pod]`` unit file content **without** a trailing
-            newline.
-        """
-        lines: list[str] = ["[Pod]"]
-
-        _list_fields = (
-            "AddHost",
-            "DNS",
-            "DNSOption",
-            "DNSSearch",
-            "Network",
-            "NetworkAlias",
-            "PublishPort",
-            "GIDMap",
-            "UIDMap",
-            "Label",
-            "Volume",
-            "ContainersConfModule",
-            "GlobalArgs",
-            "PodmanArgs",
-        )
-        _scalar_fields = (
-            "HostName",
-            "IP",
-            "IP6",
-            "PodName",
-            "ServiceName",
-            "ExitPolicy",
-            "UserNS",
-            "SubGIDMap",
-            "SubUIDMap",
-            "ShmSize",
-        )
-
-        for field_name in _scalar_fields:
-            value = getattr(self, field_name, None)
-            if value is not None:
-                lines.append(f"{field_name}={value}")
-
-        for field_name in _list_fields:
-            values = getattr(self, field_name, None)
-            if values:
-                for value in values:
-                    lines.append(f"{field_name}={value}")
-
-        return "\n".join(lines)

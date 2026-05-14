@@ -1,11 +1,13 @@
 """Pydantic model for a Podman Quadlet container unit file (podman-container.unit(5))."""
 
-from typing import Literal
+from typing import ClassVar, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field
+
+from ._base import QuadletUnit
 
 
-class ContainerUnit(BaseModel):
+class ContainerUnit(QuadletUnit):
     """Represents the ``[Container]`` section of a ``.container`` Quadlet unit file.
 
     Each field maps to a Quadlet ``[Container]`` key and its corresponding
@@ -13,6 +15,99 @@ class ContainerUnit(BaseModel):
 
     Reference: https://docs.podman.io/en/latest/markdown/podman-container.unit.5.html
     """
+
+    _section: ClassVar[str] = "Container"
+    _scalar_fields: ClassVar[tuple[str, ...]] = (
+        "AutoUpdate",
+        "CgroupsMode",
+        "ContainerName",
+        "Entrypoint",
+        "EnvironmentHost",
+        "Group",
+        "HealthCmd",
+        "HealthInterval",
+        "HealthLogDestination",
+        "HealthMaxLogCount",
+        "HealthMaxLogSize",
+        "HealthOnFailure",
+        "HealthRetries",
+        "HealthStartPeriod",
+        "HealthStartupCmd",
+        "HealthStartupInterval",
+        "HealthStartupRetries",
+        "HealthStartupSuccess",
+        "HealthStartupTimeout",
+        "HealthTimeout",
+        "HostName",
+        "HttpProxy",
+        "Image",
+        "IP",
+        "IP6",
+        "LogDriver",
+        "Memory",
+        "NoNewPrivileges",
+        "Notify",
+        "PidsLimit",
+        "Pod",
+        "Pull",
+        "ReadOnly",
+        "ReadOnlyTmpfs",
+        "ReloadCmd",
+        "ReloadSignal",
+        "Retry",
+        "RetryDelay",
+        "Rootfs",
+        "RunInit",
+        "SeccompProfile",
+        "SecurityLabelDisable",
+        "SecurityLabelFileType",
+        "SecurityLabelLevel",
+        "SecurityLabelNested",
+        "SecurityLabelType",
+        "ShmSize",
+        "StartWithPod",
+        "StopSignal",
+        "StopTimeout",
+        "SubGIDMap",
+        "SubUIDMap",
+        "Timezone",
+        "User",
+        "UserNS",
+        "WorkingDir",
+    )
+    _list_fields: ClassVar[tuple[str, ...]] = (
+        "AddCapability",
+        "AddDevice",
+        "AddHost",
+        "Annotation",
+        "ContainersConfModule",
+        "DNS",
+        "DNSOption",
+        "DNSSearch",
+        "DropCapability",
+        "Environment",
+        "EnvironmentFile",
+        "ExposeHostPort",
+        "GIDMap",
+        "UIDMap",
+        "GroupAdd",
+        "GlobalArgs",
+        "PodmanArgs",
+        "Label",
+        "LogOpt",
+        "Mask",
+        "Mount",
+        "Network",
+        "NetworkAlias",
+        "PublishPort",
+        "Secret",
+        "Sysctl",
+        "Tmpfs",
+        "Ulimit",
+        "Unmask",
+        "Volume",
+        "Exec",
+    )
 
     # -- Capabilities ----------------------------------------------------------
 
@@ -649,167 +744,3 @@ class ContainerUnit(BaseModel):
         default=None,
         description="Working directory inside the container. Corresponds to ``--workdir``.",
     )
-
-    # -- Validators ------------------------------------------------------------
-
-    @field_validator(
-        "AddCapability",
-        "AddDevice",
-        "AddHost",
-        "Annotation",
-        "ContainersConfModule",
-        "DNS",
-        "DNSOption",
-        "DNSSearch",
-        "DropCapability",
-        "Environment",
-        "EnvironmentFile",
-        "ExposeHostPort",
-        "GIDMap",
-        "UIDMap",
-        "GroupAdd",
-        "GlobalArgs",
-        "PodmanArgs",
-        "Label",
-        "LogOpt",
-        "Mask",
-        "Mount",
-        "Network",
-        "NetworkAlias",
-        "PublishPort",
-        "Secret",
-        "Sysctl",
-        "Tmpfs",
-        "Ulimit",
-        "Unmask",
-        "Volume",
-        "Exec",
-        mode="before",
-    )
-    @classmethod
-    def _coerce_list(cls, v: str | list[str] | None) -> list[str] | None:
-        """Allow a single string to be used where a list is expected."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            return [v]
-        return v
-
-    # -- Serialisation helpers -------------------------------------------------
-
-    def to_quadlet(self) -> str:
-        """Render the model as a Quadlet ``.container`` unit file string.
-
-        Only non-``None`` fields are emitted. List fields produce one
-        line per element.
-
-        Returns:
-            The complete ``[Container]`` unit file content **without** a trailing
-            newline.
-        """
-        lines: list[str] = ["[Container]"]
-
-        _list_fields = (
-            "AddCapability",
-            "AddDevice",
-            "AddHost",
-            "Annotation",
-            "ContainersConfModule",
-            "DNS",
-            "DNSOption",
-            "DNSSearch",
-            "DropCapability",
-            "Environment",
-            "EnvironmentFile",
-            "ExposeHostPort",
-            "GIDMap",
-            "UIDMap",
-            "GroupAdd",
-            "GlobalArgs",
-            "PodmanArgs",
-            "Label",
-            "LogOpt",
-            "Mask",
-            "Mount",
-            "Network",
-            "NetworkAlias",
-            "PublishPort",
-            "Secret",
-            "Sysctl",
-            "Tmpfs",
-            "Ulimit",
-            "Unmask",
-            "Volume",
-            "Exec",
-        )
-        _scalar_fields = (
-            "AutoUpdate",
-            "CgroupsMode",
-            "ContainerName",
-            "Entrypoint",
-            "EnvironmentHost",
-            "Group",
-            "HealthCmd",
-            "HealthInterval",
-            "HealthLogDestination",
-            "HealthMaxLogCount",
-            "HealthMaxLogSize",
-            "HealthOnFailure",
-            "HealthRetries",
-            "HealthStartPeriod",
-            "HealthStartupCmd",
-            "HealthStartupInterval",
-            "HealthStartupRetries",
-            "HealthStartupSuccess",
-            "HealthStartupTimeout",
-            "HealthTimeout",
-            "HostName",
-            "HttpProxy",
-            "Image",
-            "IP",
-            "IP6",
-            "LogDriver",
-            "Memory",
-            "NoNewPrivileges",
-            "Notify",
-            "PidsLimit",
-            "Pod",
-            "Pull",
-            "ReadOnly",
-            "ReadOnlyTmpfs",
-            "ReloadCmd",
-            "ReloadSignal",
-            "Retry",
-            "RetryDelay",
-            "Rootfs",
-            "RunInit",
-            "SeccompProfile",
-            "SecurityLabelDisable",
-            "SecurityLabelFileType",
-            "SecurityLabelLevel",
-            "SecurityLabelNested",
-            "SecurityLabelType",
-            "ShmSize",
-            "StartWithPod",
-            "StopSignal",
-            "StopTimeout",
-            "SubGIDMap",
-            "SubUIDMap",
-            "Timezone",
-            "User",
-            "UserNS",
-            "WorkingDir",
-        )
-
-        for field_name in _scalar_fields:
-            value = getattr(self, field_name, None)
-            if value is not None:
-                lines.append(f"{field_name}={value}")
-
-        for field_name in _list_fields:
-            values = getattr(self, field_name, None)
-            if values:
-                for value in values:
-                    lines.append(f"{field_name}={value}")
-
-        return "\n".join(lines)

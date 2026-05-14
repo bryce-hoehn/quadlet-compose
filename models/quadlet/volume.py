@@ -1,9 +1,13 @@
 """Pydantic model for a Podman Quadlet volume unit file (podman-volume.unit(5))."""
 
-from pydantic import BaseModel, Field, field_validator
+from typing import ClassVar
+
+from pydantic import Field
+
+from ._base import QuadletUnit
 
 
-class VolumeUnit(BaseModel):
+class VolumeUnit(QuadletUnit):
     """Represents the ``[Volume]`` section of a ``.volume`` Quadlet unit file.
 
     Each field maps to a Quadlet ``[Volume]`` key and its corresponding
@@ -11,6 +15,25 @@ class VolumeUnit(BaseModel):
 
     Reference: https://docs.podman.io/en/latest/markdown/podman-volume.unit.5.html
     """
+
+    _section: ClassVar[str] = "Volume"
+    _scalar_fields: ClassVar[tuple[str, ...]] = (
+        "Copy",
+        "Device",
+        "Driver",
+        "Group",
+        "Image",
+        "Options",
+        "Type",
+        "User",
+        "VolumeName",
+    )
+    _list_fields: ClassVar[tuple[str, ...]] = (
+        "ContainersConfModule",
+        "GlobalArgs",
+        "PodmanArgs",
+        "Label",
+    )
 
     # -- containers.conf -------------------------------------------------------
 
@@ -118,66 +141,3 @@ class VolumeUnit(BaseModel):
             "Name of the Podman volume. Defaults to ``systemd-$name`` when unset."
         ),
     )
-
-    # -- Validators ------------------------------------------------------------
-
-    @field_validator(
-        "ContainersConfModule",
-        "GlobalArgs",
-        "PodmanArgs",
-        "Label",
-        mode="before",
-    )
-    @classmethod
-    def _coerce_list(cls, v: str | list[str] | None) -> list[str] | None:
-        """Allow a single string to be used where a list is expected."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            return [v]
-        return v
-
-    # -- Serialisation helpers -------------------------------------------------
-
-    def to_quadlet(self) -> str:
-        """Render the model as a Quadlet ``.volume`` unit file string.
-
-        Only non-``None`` fields are emitted. List fields produce one
-        line per element.
-
-        Returns:
-            The complete ``[Volume]`` unit file content **without** a trailing
-            newline.
-        """
-        lines: list[str] = ["[Volume]"]
-
-        _list_fields = (
-            "ContainersConfModule",
-            "GlobalArgs",
-            "PodmanArgs",
-            "Label",
-        )
-        _scalar_fields = (
-            "Copy",
-            "Device",
-            "Driver",
-            "Group",
-            "Image",
-            "Options",
-            "Type",
-            "User",
-            "VolumeName",
-        )
-
-        for field_name in _scalar_fields:
-            value = getattr(self, field_name, None)
-            if value is not None:
-                lines.append(f"{field_name}={value}")
-
-        for field_name in _list_fields:
-            values = getattr(self, field_name, None)
-            if values:
-                for value in values:
-                    lines.append(f"{field_name}={value}")
-
-        return "\n".join(lines)

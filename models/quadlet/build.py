@@ -1,11 +1,13 @@
 """Pydantic model for a Podman Quadlet build unit file (podman-build.unit(5))."""
 
-from typing import Literal
+from typing import ClassVar, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field
+
+from ._base import QuadletUnit
 
 
-class BuildUnit(BaseModel):
+class BuildUnit(QuadletUnit):
     """Represents the ``[Build]`` section of a ``.build`` Quadlet unit file.
 
     Each field maps to a Quadlet ``[Build]`` key and its corresponding
@@ -16,6 +18,37 @@ class BuildUnit(BaseModel):
 
     Reference: https://docs.podman.io/en/latest/markdown/podman-build.unit.5.html
     """
+
+    _section: ClassVar[str] = "Build"
+    _scalar_fields: ClassVar[tuple[str, ...]] = (
+        "Arch",
+        "AuthFile",
+        "File",
+        "ForceRM",
+        "ImageTag",
+        "Network",
+        "Pull",
+        "Retry",
+        "RetryDelay",
+        "SetWorkingDirectory",
+        "Target",
+        "TLSVerify",
+        "Variant",
+    )
+    _list_fields: ClassVar[tuple[str, ...]] = (
+        "Annotation",
+        "ContainersConfModule",
+        "DNS",
+        "DNSOption",
+        "DNSSearch",
+        "Environment",
+        "GlobalArgs",
+        "GroupAdd",
+        "Label",
+        "PodmanArgs",
+        "Secret",
+        "Volume",
+    )
 
     # -- containers.conf -------------------------------------------------------
 
@@ -220,86 +253,3 @@ class BuildUnit(BaseModel):
             "command. Space-separated per entry; may be listed multiple times."
         ),
     )
-
-    # -- Validators ------------------------------------------------------------
-
-    @field_validator(
-        "Annotation",
-        "ContainersConfModule",
-        "DNS",
-        "DNSOption",
-        "DNSSearch",
-        "Environment",
-        "GlobalArgs",
-        "GroupAdd",
-        "Label",
-        "PodmanArgs",
-        "Secret",
-        "Volume",
-        mode="before",
-    )
-    @classmethod
-    def _coerce_list(cls, v: str | list[str] | None) -> list[str] | None:
-        """Allow a single string to be used where a list is expected."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            return [v]
-        return v
-
-    # -- Serialisation helpers -------------------------------------------------
-
-    def to_quadlet(self) -> str:
-        """Render the model as a Quadlet ``.build`` unit file string.
-
-        Only non-``None`` fields are emitted. List fields produce one
-        line per element.
-
-        Returns:
-            The complete ``[Build]`` unit file content **without** a trailing
-            newline.
-        """
-        lines: list[str] = ["[Build]"]
-
-        _scalar_fields = (
-            "Arch",
-            "AuthFile",
-            "File",
-            "ForceRM",
-            "ImageTag",
-            "Network",
-            "Pull",
-            "Retry",
-            "RetryDelay",
-            "SetWorkingDirectory",
-            "Target",
-            "TLSVerify",
-            "Variant",
-        )
-        _list_fields = (
-            "Annotation",
-            "ContainersConfModule",
-            "DNS",
-            "DNSOption",
-            "DNSSearch",
-            "Environment",
-            "GlobalArgs",
-            "GroupAdd",
-            "Label",
-            "PodmanArgs",
-            "Secret",
-            "Volume",
-        )
-
-        for field_name in _scalar_fields:
-            value = getattr(self, field_name, None)
-            if value is not None:
-                lines.append(f"{field_name}={value}")
-
-        for field_name in _list_fields:
-            values = getattr(self, field_name, None)
-            if values:
-                for value in values:
-                    lines.append(f"{field_name}={value}")
-
-        return "\n".join(lines)

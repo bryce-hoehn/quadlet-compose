@@ -1,9 +1,13 @@
 """Pydantic model for a Podman Quadlet network unit file (podman-network.unit(5))."""
 
-from pydantic import BaseModel, Field, field_validator
+from typing import ClassVar
+
+from pydantic import Field
+
+from ._base import QuadletUnit
 
 
-class NetworkUnit(BaseModel):
+class NetworkUnit(QuadletUnit):
     """Represents the ``[Network]`` section of a ``.network`` Quadlet unit file.
 
     Each field maps to a Quadlet ``[Network]`` key and its corresponding
@@ -11,6 +15,29 @@ class NetworkUnit(BaseModel):
 
     Reference: https://docs.podman.io/en/latest/markdown/podman-network.unit.5.html
     """
+
+    _section: ClassVar[str] = "Network"
+    _scalar_fields: ClassVar[tuple[str, ...]] = (
+        "DisableDNS",
+        "Driver",
+        "IPAMDriver",
+        "IPv6",
+        "InterfaceName",
+        "Internal",
+        "NetworkDeleteOnStop",
+        "NetworkName",
+        "Options",
+    )
+    _list_fields: ClassVar[tuple[str, ...]] = (
+        "ContainersConfModule",
+        "DNS",
+        "Gateway",
+        "GlobalArgs",
+        "IPRange",
+        "Label",
+        "PodmanArgs",
+        "Subnet",
+    )
 
     # -- containers.conf -------------------------------------------------------
 
@@ -154,74 +181,3 @@ class NetworkUnit(BaseModel):
             "Name of the Podman network. Defaults to ``systemd-$name`` when unset."
         ),
     )
-
-    # -- Validators ------------------------------------------------------------
-
-    @field_validator(
-        "ContainersConfModule",
-        "DNS",
-        "Gateway",
-        "GlobalArgs",
-        "IPRange",
-        "Label",
-        "PodmanArgs",
-        "Subnet",
-        mode="before",
-    )
-    @classmethod
-    def _coerce_list(cls, v: str | list[str] | None) -> list[str] | None:
-        """Allow a single string to be used where a list is expected."""
-        if v is None:
-            return None
-        if isinstance(v, str):
-            return [v]
-        return v
-
-    # -- Serialisation helpers -------------------------------------------------
-
-    def to_quadlet(self) -> str:
-        """Render the model as a Quadlet ``.network`` unit file string.
-
-        Only non-``None`` fields are emitted. List fields produce one
-        line per element.
-
-        Returns:
-            The complete ``[Network]`` unit file content **without** a trailing
-            newline.
-        """
-        lines: list[str] = ["[Network]"]
-
-        _scalar_fields = (
-            "DisableDNS",
-            "Driver",
-            "IPAMDriver",
-            "IPv6",
-            "InterfaceName",
-            "Internal",
-            "NetworkDeleteOnStop",
-            "NetworkName",
-            "Options",
-        )
-        _list_fields = (
-            "ContainersConfModule",
-            "DNS",
-            "Gateway",
-            "GlobalArgs",
-            "IPRange",
-            "Label",
-            "PodmanArgs",
-            "Subnet",
-        )
-
-        for field_name in _scalar_fields:
-            value = getattr(self, field_name, None)
-            if value is not None:
-                lines.append(f"{field_name}={value}")
-
-        for field_name in _list_fields:
-            values = getattr(self, field_name, None)
-            if values:
-                for value in values:
-                    lines.append(f"{field_name}={value}")
-
-        return "\n".join(lines)
