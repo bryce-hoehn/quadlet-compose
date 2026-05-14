@@ -1,5 +1,9 @@
 """compose version command — show version information."""
 
+from importlib.metadata import version
+
+from rich.console import Console
+
 
 def compose_version(
     *,
@@ -9,4 +13,5 @@ def compose_version(
     remove_orphans: bool = False,
 ) -> None:
     """Show version information."""
-    raise NotImplementedError("compose version")
+    console = Console()
+    console.print(f'quadlet-compose version {version("quadlet-compose")}')
