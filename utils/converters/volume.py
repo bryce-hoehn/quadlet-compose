@@ -1,7 +1,5 @@
 """Converter functions for compose Volume → Quadlet VolumeUnit fields."""
 
-from __future__ import annotations
-
 from typing import Any
 
 

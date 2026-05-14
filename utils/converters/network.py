@@ -1,7 +1,5 @@
 """Converter functions for compose Network → Quadlet NetworkUnit fields."""
 
-from __future__ import annotations
-
 from typing import Any
 
 

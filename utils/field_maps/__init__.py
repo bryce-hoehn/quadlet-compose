@@ -4,10 +4,10 @@ Each module exports a ``FIELD_MAP`` list of ``(compose_attr, quadlet_attr, conve
 tuples consumed by :func:`utils.mapping._apply_field_map`.
 """
 
-from field_maps.service import SERVICE_FIELD_MAP
-from field_maps.build import BUILD_FIELD_MAP
-from field_maps.network import NETWORK_FIELD_MAP
-from field_maps.volume import VOLUME_FIELD_MAP
+from .service import SERVICE_FIELD_MAP
+from .build import BUILD_FIELD_MAP
+from .network import NETWORK_FIELD_MAP
+from .volume import VOLUME_FIELD_MAP
 
 __all__ = [
     "SERVICE_FIELD_MAP",

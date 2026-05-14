@@ -1,8 +1,6 @@
 """ServiceBuild → BuildUnit field mapping table."""
 
-from __future__ import annotations
-
-from converters import (
+from ..converters import (
     convert_build_context,
     convert_build_dockerfile,
     convert_build_labels,

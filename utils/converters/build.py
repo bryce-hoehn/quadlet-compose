@@ -1,10 +1,8 @@
 """Converter functions for compose ServiceBuild → Quadlet BuildUnit fields."""
 
-from __future__ import annotations
-
 from typing import Any
 
-from converters._helpers import _as_list
+from ._helpers import _as_list
 
 
 def convert_build_context(value: Any) -> dict[str, Any]:

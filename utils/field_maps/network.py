@@ -1,8 +1,6 @@
 """Network → NetworkUnit field mapping table."""
 
-from __future__ import annotations
-
-from converters import (
+from ..converters import (
     convert_network_driver_opts,
     convert_network_enable_ipv6,
     convert_network_internal,

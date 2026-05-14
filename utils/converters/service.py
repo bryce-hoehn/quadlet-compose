@@ -1,11 +1,9 @@
 """Converter functions for compose Service → Quadlet ContainerUnit fields."""
 
-from __future__ import annotations
-
 from typing import Any
 
-from converters._helpers import _as_list, _as_optional_list
-from converters._duration import _parse_duration_seconds
+from ._helpers import _as_list, _as_optional_list
+from ._duration import _parse_duration_seconds
 
 
 def convert_command(value: Any) -> dict[str, Any]:

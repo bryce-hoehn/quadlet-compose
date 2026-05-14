@@ -1,7 +1,5 @@
 """Duration parsing for compose time specifications."""
 
-from __future__ import annotations
-
 import re
 
 

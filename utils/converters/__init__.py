@@ -6,16 +6,16 @@ package for convenience::
     from converters import convert_ports, convert_healthcheck
 """
 
-from converters._helpers import _as_list, _as_optional_list
-from converters._duration import _parse_duration_seconds
-from converters._list_or_dict import (
+from ._helpers import _as_list, _as_optional_list
+from ._duration import _parse_duration_seconds
+from ._list_or_dict import (
     convert_list_or_dict_to_build_env,
     convert_list_or_dict_to_build_labels,
     convert_list_or_dict_to_env,
     convert_list_or_dict_to_labels,
     convert_list_or_dict_to_sysctls,
 )
-from converters.service import (
+from .service import (
     convert_cap_add,
     convert_cap_drop,
     convert_cgroup,
@@ -49,7 +49,7 @@ from converters.service import (
     convert_volumes,
     convert_working_dir,
 )
-from converters.build import (
+from .build import (
     convert_build_context,
     convert_build_dockerfile,
     convert_build_labels,
@@ -58,7 +58,7 @@ from converters.build import (
     convert_build_secrets,
     convert_build_target,
 )
-from converters.network import (
+from .network import (
     convert_network_driver_opts,
     convert_network_enable_ipv6,
     convert_network_internal,
@@ -66,7 +66,7 @@ from converters.network import (
     convert_network_labels,
     convert_network_name,
 )
-from converters.volume import (
+from .volume import (
     convert_volume_labels,
     convert_volume_name,
 )

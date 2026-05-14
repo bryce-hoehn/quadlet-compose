@@ -1,8 +1,6 @@
 """Volume → VolumeUnit field mapping table."""
 
-from __future__ import annotations
-
-from converters import (
+from ..converters import (
     convert_volume_labels,
     convert_volume_name,
 )

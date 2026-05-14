@@ -5,11 +5,9 @@ Each entry is ``(compose_attr, quadlet_attr, converter | None)``.
 Empty ``quadlet_attr`` signals a 1:N expansion (converter returns multiple fields).
 """
 
-from __future__ import annotations
-
 from typing import Any, Callable
 
-from converters import (
+from ..converters import (
     convert_cap_add,
     convert_cap_drop,
     convert_cgroup,
