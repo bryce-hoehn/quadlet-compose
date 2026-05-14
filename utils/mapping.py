@@ -1,22 +1,11 @@
-"""Compose-spec → Quadlet unit mapping layer (thin orchestrator).
-
-This module wires together the declarative field maps and converter
-functions, then orchestrates the compose→quadlet translation via
-:meth:`map_compose`.
-
-Field maps live in :mod:`field_maps/`; converter functions live in
-:mod:`converters`.
-
-BUG FIX vs. previous version:
-  - Pod name mismatch: the pod unit's ``PodName`` and the container's
-    ``Pod`` reference are now both ``{project_name}-pod`` (previously
-    the pod unit used bare ``project_name``).
+"""
+Compose-spec → Quadlet unit mapping layer
 """
 
-from __future__ import annotations
-
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar
+from pathlib import Path
 
 from models.compose import (
     Network,
@@ -25,7 +14,6 @@ from models.compose import (
     Volume,
 )
 from pydantic import BaseModel
-from typing import TypeVar
 
 from models.quadlet.build import BuildUnit
 from models.quadlet.container import ContainerUnit
@@ -33,7 +21,7 @@ from models.quadlet.network import NetworkUnit
 from models.quadlet.pod import PodUnit
 from models.quadlet.volume import VolumeUnit
 
-from field_maps import (
+from .field_maps import (
     BUILD_FIELD_MAP,
     NETWORK_FIELD_MAP,
     SERVICE_FIELD_MAP,
@@ -59,7 +47,7 @@ T = TypeVar("T", bound=BaseModel)
 
 def _apply_field_map(
     source: BaseModel,
-    field_map: list[FieldMapEntry],
+    field_map: Sequence[FieldMapEntry],
 ) -> dict[str, Any]:
     """Apply a field map to a source model and return a flat dict of quadlet kwargs.
 
@@ -95,6 +83,7 @@ def map_service(
     *,
     service_name: str,
     project_name: str | None = None,
+    compose_path: Path | None = None,
     pod_name: str | None = None,
 ) -> ContainerUnit:
     """Map a compose ``Service`` to a quadlet ``ContainerUnit``.
@@ -137,6 +126,7 @@ def map_build(
     *,
     service_name: str,
     project_name: str | None = None,
+    compose_path: Path | None = None,
 ) -> BuildUnit:
     """Map a compose ``ServiceBuild`` to a quadlet ``BuildUnit``.
 
@@ -163,6 +153,7 @@ def map_network(
     *,
     network_name: str,
     project_name: str | None = None,
+    compose_path: Path | None = None,
 ) -> NetworkUnit:
     """Map a compose ``Network`` to a quadlet ``NetworkUnit``.
 
@@ -191,6 +182,7 @@ def map_volume(
     *,
     volume_name: str,
     project_name: str | None = None,
+    compose_path: Path | None = None,
 ) -> VolumeUnit:
     """Map a compose ``Volume`` to a quadlet ``VolumeUnit``.
 
@@ -224,6 +216,7 @@ class QuadletBundle:
     """Aggregation of all quadlet units produced from a single compose file.
 
     Attributes:
+        project_name: Resolved project name (from compose ``name:``, directory, or explicit).
         pod: The pod unit (one per compose project).
         containers: List of container units (one per service).
         networks: List of network units.
@@ -231,11 +224,58 @@ class QuadletBundle:
         builds: List of build units (for services with ``build:``).
     """
 
+    project_name: str = ""
     pod: PodUnit | None = None
     containers: list[ContainerUnit] = field(default_factory=list)
     networks: list[NetworkUnit] = field(default_factory=list)
     volumes: list[VolumeUnit] = field(default_factory=list)
     builds: list[BuildUnit] = field(default_factory=list)
+
+    def _tag(self, project_name: str) -> None:
+        """Inject project-ownership labels into all units.
+
+        Appends the project label to any existing labels rather than
+        replacing them, so compose ``labels:`` are preserved.
+        """
+        label = f"io.quadlet-compose.project={project_name}"
+        all_units: list[
+            PodUnit | ContainerUnit | NetworkUnit | VolumeUnit | BuildUnit
+        ] = []
+        if self.pod is not None:
+            all_units.append(self.pod)
+        all_units.extend(self.containers)
+        all_units.extend(self.networks)
+        all_units.extend(self.volumes)
+        all_units.extend(self.builds)
+        for unit in all_units:
+            if unit.Label is None:
+                unit.Label = [label]
+            else:
+                unit.Label.append(label)
+
+    def service_names(self) -> list[str]:
+        """Return the systemd service names for all units in this bundle.
+
+        The quadlet→systemd convention is ``{stem}-{ext}.service``
+        where the quadlet filename is ``{stem}.{ext}``.
+        """
+        names: list[str] = []
+        if self.pod is not None:
+            name = self.pod.PodName or "pod"
+            names.append(f"{name}-pod.service")
+        for unit in self.containers:
+            name = unit.ContainerName or "container"
+            names.append(f"{name}-container.service")
+        for unit in self.networks:
+            name = unit.NetworkName or "network"
+            names.append(f"{name}-network.service")
+        for unit in self.volumes:
+            name = unit.VolumeName or "volume"
+            names.append(f"{name}-volume.service")
+        for unit in self.builds:
+            tag = unit.ImageTag or "build"
+            names.append(f"{tag}-build.service")
+        return names
 
     def to_quadlet_files(self) -> dict[str, str]:
         """Render all units to their quadlet file contents.
@@ -266,6 +306,7 @@ def map_compose(
     compose_data: dict[str, Any],
     *,
     project_name: str | None = None,
+    compose_path: Path | None = None,
 ) -> QuadletBundle:
     """Map a full compose specification dict to a ``QuadletBundle``.
 
@@ -273,7 +314,11 @@ def map_compose(
 
     Args:
         compose_data: The parsed compose file as a dict (from YAML).
-        project_name: Optional project name (defaults to directory name).
+        project_name: Explicit project name (overrides compose ``name:`` and
+            directory-based fallback).
+        compose_path: Path to the compose file, used to derive the project
+            name from the parent directory when neither *project_name* nor
+            ``compose_data["name"]`` is set.
 
     Returns:
         A ``QuadletBundle`` containing all generated quadlet units.
@@ -285,7 +330,11 @@ def map_compose(
 
     # Determine project name
     if not project_name:
-        project_name = spec.name if spec.name else "default"
+        project_name = spec.name or (
+            compose_path.parent.name if compose_path else "default"
+        )
+
+    bundle.project_name = project_name
 
     # Create pod for the project — PodName matches the Pod= reference
     pod_name = f"{project_name}-pod"
@@ -303,7 +352,7 @@ def map_compose(
             if svc_model.build:
                 build_obj = svc_model.build
                 if isinstance(build_obj, str):
-                    build_obj = ServiceBuild(context=build_obj)
+                    build_obj = ServiceBuild.model_validate({"context": build_obj})
                 build_unit = map_build(
                     build_obj,
                     service_name=svc_name,
@@ -323,6 +372,8 @@ def map_compose(
     # Map networks
     if spec.networks:
         for net_name, net in spec.networks.items():
+            if net is None:
+                net = {}
             net_model = Network.model_validate(net) if isinstance(net, dict) else net
             # Skip external networks
             if net_model.external:
@@ -337,6 +388,8 @@ def map_compose(
     # Map volumes
     if spec.volumes:
         for vol_name, vol in spec.volumes.items():
+            if vol is None:
+                vol = {}
             vol_model = Volume.model_validate(vol) if isinstance(vol, dict) else vol
             # Skip external volumes
             if vol_model.external:
@@ -347,5 +400,7 @@ def map_compose(
                 project_name=project_name,
             )
             bundle.volumes.append(volume_unit)
+
+    bundle._tag(project_name)
 
     return bundle
