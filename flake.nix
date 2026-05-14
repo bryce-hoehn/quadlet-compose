@@ -23,7 +23,7 @@
 
         quadlet-compose = pkgs.python312Packages.buildPythonApplication {
           pname = "quadlet-compose";
-          version = "0.2.1";
+          version = "0.3.0";
           format = "pyproject";
 
           src = ./.;
