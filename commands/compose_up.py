@@ -90,8 +90,9 @@ def compose_up(
         for path in _find_project_files(unit_dir, bundle.project_name):
             if path.name in current_filenames:
                 continue
-            stem, ext = path.name.rsplit(".", 1)
-            svc = f"{stem}-{ext}.service"
+            # Quadlet → systemd: {stem}.{ext} → {stem}.service
+            stem = path.name.rsplit(".", 1)[0]
+            svc = f"{stem}.service"
             console.print(f"removing orphan {path.name}")
             subprocess.run(
                 ["systemctl", "--user", "stop", svc],

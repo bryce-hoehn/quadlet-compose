@@ -268,25 +268,16 @@ class QuadletBundle:
     def service_names(self) -> list[str]:
         """Return the systemd service names for all units in this bundle.
 
-        The quadlet→systemd convention is ``{stem}-{ext}.service``
-        where the quadlet filename is ``{stem}.{ext}``.
+        The Podman Quadlet generator names systemd services after the
+        **file stem**: ``{stem}.service`` where the quadlet filename is
+        ``{stem}.{ext}``.  This method derives names from the same
+        filenames :meth:`to_quadlet_files` produces, so the two always
+        agree.
         """
         names: list[str] = []
-        if self.pod is not None:
-            name = self.pod.PodName or "pod"
-            names.append(f"{name}-pod.service")
-        for unit in self.containers:
-            name = unit.ContainerName or "container"
-            names.append(f"{name}-container.service")
-        for unit in self.networks:
-            name = unit.NetworkName or "network"
-            names.append(f"{name}-network.service")
-        for unit in self.volumes:
-            name = unit.VolumeName or "volume"
-            names.append(f"{name}-volume.service")
-        for unit in self.builds:
-            tag = unit.ImageTag or "build"
-            names.append(f"{tag}-build.service")
+        for filename in self.to_quadlet_files():
+            stem = filename.rsplit(".", 1)[0]
+            names.append(f"{stem}.service")
         return names
 
     def to_quadlet_files(self) -> dict[str, str]:
@@ -381,12 +372,14 @@ def map_compose(
             )
             bundle.containers.append(container)
 
-            # Track restart policy for compose_up to handle
+            # Track restart policy for compose_up to handle.
+            # Key is the systemd service name, which matches the quadlet
+            # filename stem: ``{ContainerName}.service``.
             if svc_model.restart:
                 svc_name_systemd = (
                     container.ContainerName or f"{project_name}-{svc_name}"
                 )
-                bundle.restart_policies[f"{svc_name_systemd}-container.service"] = (
+                bundle.restart_policies[f"{svc_name_systemd}.service"] = (
                     svc_model.restart
                 )
 

@@ -382,35 +382,40 @@ class TestQuadletBundle:
     def test_service_names_with_pod(self) -> None:
         bundle = QuadletBundle(pod=PodUnit(PodName="myapp-pod"))
         names = bundle.service_names()
-        assert "myapp-pod-pod.service" in names
+        # Quadlet: myapp-pod.pod → myapp-pod.service
+        assert "myapp-pod.service" in names
 
     def test_service_names_with_container(self) -> None:
         bundle = QuadletBundle(
             containers=[ContainerUnit(Image="nginx:latest", ContainerName="web")],
         )
         names = bundle.service_names()
-        assert "web-container.service" in names
+        # Quadlet: web.container → web.service
+        assert "web.service" in names
 
     def test_service_names_with_network(self) -> None:
         bundle = QuadletBundle(
             networks=[NetworkUnit(NetworkName="frontend")],
         )
         names = bundle.service_names()
-        assert "frontend-network.service" in names
+        # Quadlet: frontend.network → frontend.service
+        assert "frontend.service" in names
 
     def test_service_names_with_volume(self) -> None:
         bundle = QuadletBundle(
             volumes=[VolumeUnit(VolumeName="data")],
         )
         names = bundle.service_names()
-        assert "data-volume.service" in names
+        # Quadlet: data.volume → data.service
+        assert "data.service" in names
 
     def test_service_names_with_build(self) -> None:
         bundle = QuadletBundle(
             builds=[BuildUnit(ImageTag="myapp-web")],
         )
         names = bundle.service_names()
-        assert "myapp-web-build.service" in names
+        # Quadlet: myapp-web.build → myapp-web.service
+        assert "myapp-web.service" in names
 
     def test_to_quadlet_files_empty(self) -> None:
         bundle = QuadletBundle()
