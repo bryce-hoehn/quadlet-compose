@@ -1,6 +1,7 @@
 """compose up command — create and start containers via quadlet."""
 
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Literal
 
@@ -78,13 +79,7 @@ def compose_up(
 
     unit_dir = get_unit_directory()
 
-    # Write quadlet files
-    for filename, content in quadlet_files.items():
-        dest = unit_dir / filename
-        dest.write_text(content)
-        console.print(f"  wrote {dest}")
-
-    # Stop orphaned services before daemon-reload
+    # Stop orphaned services before installing new quadlet files
     if remove_orphans:
         current_filenames = set(quadlet_files)
         for path in _find_project_files(unit_dir, bundle.project_name):
@@ -100,10 +95,17 @@ def compose_up(
             )
             path.unlink()
 
-    subprocess.run(
-        ["systemctl", "--user", "daemon-reload"],
-        check=True,
-    )
+    # Write quadlet files to a temp dir, then install atomically via
+    # `podman quadlet install` which handles the generator + daemon-reload.
+    with tempfile.TemporaryDirectory(prefix='quadlet-compose-') as tmp:
+        tmp_dir = Path(tmp)
+        for filename, content in quadlet_files.items():
+            dest = tmp_dir / filename
+            dest.write_text(content)
+        subprocess.run(
+            ["podman", "quadlet", "install", "--replace", str(tmp_dir)],
+            check=True,
+        )
 
     # Start all current services
     for svc in bundle.service_names():
