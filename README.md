@@ -88,6 +88,27 @@ Comparison of `docker compose` commands against `quadlet-compose` support:
 | `wait` | ❌ | |
 | `watch` | ❌ | |
 
+## Variable Interpolation
+
+`quadlet-compose` supports variable interpolation in compose files using `$VAR` and `${VAR}` syntax, resolved via `os.path.expandvars()` with `.env` file loading via `python-dotenv`.
+
+**Priority order** (highest to lowest):
+1. `.env` file (located alongside the compose file)
+2. CLI `--env KEY=VALUE` flags
+3. Shell environment variables (`os.environ`)
+
+**Supported syntax:**
+- `$VAR` / `${VAR}` — direct substitution from environment or `.env` file
+
+**Not yet supported** (contributions welcome):
+- `${VAR:-default}` / `${VAR-default}` — default value modifiers
+- `${VAR:?error}` / `${VAR?error}` — required value checks
+- `${VAR:+replacement}` / `${VAR+replacement}` — alternative value syntax
+- `$$` — literal dollar sign escaping
+- Single-quoted string passthrough (no interpolation within `'...'`)
+
+Use `--no-interpolate` with `config` or `convert` to disable interpolation and see raw variable references.
+
 ## Field Compatibility
 
 ### Service fields
