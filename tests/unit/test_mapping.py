@@ -652,3 +652,52 @@ class TestMapCompose:
         images = [c.Image for c in bundle.containers]
         assert "nginx:latest" in images
         assert "postgres:15" in images
+
+    def test_compose_restart_always_adds_install(self) -> None:
+        """Services with restart: always should get [Install] WantedBy."""
+        data = {
+            "services": {
+                "web": {"image": "nginx:latest", "restart": "always"},
+            },
+        }
+        bundle = map_compose(data, project_name="test")
+        container = bundle.containers[0]
+        assert container.install == {"WantedBy": "default.target"}
+        # Verify it appears in the rendered quadlet file
+        files = bundle.to_quadlet_files()
+        content = files["test-web.container"]
+        assert "[Install]" in content
+        assert "WantedBy=default.target" in content
+
+    def test_compose_restart_unless_stopped_adds_install(self) -> None:
+        """Services with restart: unless-stopped should get [Install] WantedBy."""
+        data = {
+            "services": {
+                "web": {"image": "nginx:latest", "restart": "unless-stopped"},
+            },
+        }
+        bundle = map_compose(data, project_name="test")
+        container = bundle.containers[0]
+        assert container.install == {"WantedBy": "default.target"}
+
+    def test_compose_restart_on_failure_no_install(self) -> None:
+        """Services with restart: on-failure should NOT get [Install]."""
+        data = {
+            "services": {
+                "web": {"image": "nginx:latest", "restart": "on-failure"},
+            },
+        }
+        bundle = map_compose(data, project_name="test")
+        container = bundle.containers[0]
+        assert container.install is None
+
+    def test_compose_no_restart_no_install(self) -> None:
+        """Services without restart should NOT get [Install]."""
+        data = {
+            "services": {
+                "web": {"image": "nginx:latest"},
+            },
+        }
+        bundle = map_compose(data, project_name="test")
+        container = bundle.containers[0]
+        assert container.install is None

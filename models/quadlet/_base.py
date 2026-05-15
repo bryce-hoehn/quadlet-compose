@@ -41,6 +41,12 @@ class QuadletUnit(BaseModel):
     _scalar_fields: ClassVar[tuple[str, ...]] = ()
     _list_fields: ClassVar[tuple[str, ...]] = ()
 
+    #: Optional ``[Install]`` section key-value pairs (e.g.
+    #: ``{"WantedBy": "default.target"}``).  Podman Quadlet copies this
+    #: section verbatim into the generated ``.service`` file, allowing
+    #: ``systemctl --user enable`` to create the appropriate symlinks.
+    install: dict[str, str] | None = None
+
     # -- Validators ------------------------------------------------------------
 
     @field_validator("*", mode="before")
@@ -59,7 +65,8 @@ class QuadletUnit(BaseModel):
         """Render the model as a Quadlet unit file string.
 
         Only non-``None`` fields are emitted.  List fields produce one
-        line per element.
+        line per element.  If ``install`` is set, an ``[Install]``
+        section is appended after the main section.
 
         Returns:
             The complete ``[{section}]`` unit file content **without** a
@@ -77,5 +84,14 @@ class QuadletUnit(BaseModel):
             if values:
                 for value in values:
                     lines.append(f"{field_name}={value}")
+
+        # Append [Install] section so systemctl --user enable works on
+        # generated units.  Without this, systemd refuses with
+        # "Unit … is transient or generated".
+        if self.install:
+            lines.append("")
+            lines.append("[Install]")
+            for key, value in self.install.items():
+                lines.append(f"{key}={value}")
 
         return "\n".join(lines)

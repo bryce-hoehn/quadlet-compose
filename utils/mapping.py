@@ -436,6 +436,13 @@ def map_compose(
                     svc_model.restart
                 )
 
+            # Add [Install] section so ``systemctl --user enable`` works
+            # on the Quadlet-generated .service unit.  Without an
+            # [Install] section systemd refuses with
+            # "Unit … is transient or generated".
+            if svc_model.restart in ("always", "unless-stopped"):
+                container.install = {"WantedBy": "default.target"}
+
     # Map networks
     if spec.networks:
         for net_name, net in spec.networks.items():
