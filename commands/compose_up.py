@@ -9,7 +9,7 @@ from rich.console import Console
 
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
-from utils.quadlet import get_unit_directory
+from utils.quadlet import enable_service, get_unit_directory
 
 QUADLET_EXTENSIONS = frozenset(
     {".container", ".pod", ".network", ".volume", ".build"},
@@ -124,11 +124,12 @@ def compose_up(
             check=True,
         )
 
-    # Enable services with restart: always / unless-stopped so they survive reboots
+    # Enable services with restart: always / unless-stopped so they survive
+    # reboots.  We cannot use ``systemctl --user enable`` because systemd
+    # refuses to enable generated units (those in
+    # /run/user/{uid}/systemd/generator/).  Instead we create the
+    # WantedBy=default.target symlink manually.
     for svc, policy in bundle.restart_policies.items():
         if policy in ("always", "unless-stopped"):
             console.print(f"enabling {svc} (restart: {policy})")
-            subprocess.run(
-                ["systemctl", "--user", "enable", svc],
-                check=True,
-            )
+            enable_service(svc)

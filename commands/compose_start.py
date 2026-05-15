@@ -6,6 +6,7 @@ from rich.console import Console
 
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
+from utils.quadlet import enable_service
 
 
 def compose_start(
@@ -32,11 +33,10 @@ def compose_start(
             check=True,
         )
 
-    # Enable services with restart: always / unless-stopped
+    # Enable services with restart: always / unless-stopped.
+    # ``systemctl --user enable`` refuses to operate on generated units,
+    # so we create the WantedBy=default.target symlink manually.
     for svc, policy in bundle.restart_policies.items():
         if policy in ("always", "unless-stopped"):
             console.print(f"enabling {svc} (restart: {policy})")
-            subprocess.run(
-                ["systemctl", "--user", "enable", svc],
-                check=True,
-            )
+            enable_service(svc)
