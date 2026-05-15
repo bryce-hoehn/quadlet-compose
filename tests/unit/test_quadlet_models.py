@@ -245,32 +245,32 @@ class TestPodUnit:
     """Tests for PodUnit."""
 
     def test_minimal(self) -> None:
-        unit = PodUnit(PodName="myapp-pod")
-        assert unit.PodName == "myapp-pod"
+        unit = PodUnit(PodName="myapp")
+        assert unit.PodName == "myapp"
 
     def test_with_exit_policy(self) -> None:
-        unit = PodUnit(PodName="myapp-pod", ExitPolicy="stop")
+        unit = PodUnit(PodName="myapp", ExitPolicy="stop")
         assert unit.ExitPolicy == "stop"
 
     def test_to_quadlet(self) -> None:
-        unit = PodUnit(PodName="myapp-pod", ExitPolicy="stop")
+        unit = PodUnit(PodName="myapp", ExitPolicy="stop")
         result = unit.to_quadlet()
         assert result.startswith("[Pod]")
-        assert "PodName=myapp-pod" in result
+        assert "PodName=myapp" in result
         assert "ExitPolicy=stop" in result
 
     def test_with_publish_port(self) -> None:
-        unit = PodUnit(PodName="myapp-pod", PublishPort=["80:80", "443:443"])
+        unit = PodUnit(PodName="myapp", PublishPort=["80:80", "443:443"])
         result = unit.to_quadlet()
         assert "PublishPort=80:80" in result
         assert "PublishPort=443:443" in result
 
     def test_with_network(self) -> None:
-        unit = PodUnit(PodName="myapp-pod", Network=["myapp-frontend"])
+        unit = PodUnit(PodName="myapp", Network=["myapp-frontend"])
         assert unit.Network == ["myapp-frontend"]
 
     def test_with_dns(self) -> None:
-        unit = PodUnit(PodName="myapp-pod", DNS=["8.8.8.8"])
+        unit = PodUnit(PodName="myapp", DNS=["8.8.8.8"])
         result = unit.to_quadlet()
         assert "DNS=8.8.8.8" in result
 

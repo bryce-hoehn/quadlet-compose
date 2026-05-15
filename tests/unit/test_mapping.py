@@ -380,9 +380,9 @@ class TestQuadletBundle:
         assert bundle.service_names() == []
 
     def test_service_names_with_pod(self) -> None:
-        bundle = QuadletBundle(pod=PodUnit(PodName="myapp-pod"))
+        bundle = QuadletBundle(pod=PodUnit(PodName="myapp"))
         names = bundle.service_names()
-        # Quadlet: myapp-pod.pod → myapp-pod.service
+        # Quadlet: myapp.pod → myapp-pod.service
         assert "myapp-pod.service" in names
 
     def test_service_names_with_container(self) -> None:
@@ -398,34 +398,34 @@ class TestQuadletBundle:
             networks=[NetworkUnit(NetworkName="frontend")],
         )
         names = bundle.service_names()
-        # Quadlet: frontend.network → frontend.service
-        assert "frontend.service" in names
+        # Quadlet: frontend.network → frontend-network.service
+        assert "frontend-network.service" in names
 
     def test_service_names_with_volume(self) -> None:
         bundle = QuadletBundle(
             volumes=[VolumeUnit(VolumeName="data")],
         )
         names = bundle.service_names()
-        # Quadlet: data.volume → data.service
-        assert "data.service" in names
+        # Quadlet: data.volume → data-volume.service
+        assert "data-volume.service" in names
 
     def test_service_names_with_build(self) -> None:
         bundle = QuadletBundle(
             builds=[BuildUnit(ImageTag="myapp-web")],
         )
         names = bundle.service_names()
-        # Quadlet: myapp-web.build → myapp-web.service
-        assert "myapp-web.service" in names
+        # Quadlet: myapp-web.build → myapp-web-build.service
+        assert "myapp-web-build.service" in names
 
     def test_to_quadlet_files_empty(self) -> None:
         bundle = QuadletBundle()
         assert bundle.to_quadlet_files() == {}
 
     def test_to_quadlet_files_with_pod(self) -> None:
-        bundle = QuadletBundle(pod=PodUnit(PodName="myapp-pod"))
+        bundle = QuadletBundle(pod=PodUnit(PodName="myapp"))
         files = bundle.to_quadlet_files()
-        assert "myapp-pod.pod" in files
-        assert "[Pod]" in files["myapp-pod.pod"]
+        assert "myapp.pod" in files
+        assert "[Pod]" in files["myapp.pod"]
 
     def test_to_quadlet_files_with_container(self) -> None:
         bundle = QuadletBundle(
@@ -462,7 +462,7 @@ class TestQuadletBundle:
 
     def test_tag_injects_project_label(self) -> None:
         bundle = QuadletBundle(
-            pod=PodUnit(PodName="test-pod"),
+            pod=PodUnit(PodName="test"),
             containers=[ContainerUnit(Image="nginx:latest", ContainerName="web")],
         )
         bundle._tag("myapp")
@@ -503,10 +503,10 @@ class TestMapCompose:
         bundle = map_compose(data, project_name="test")
         assert bundle.project_name == "test"
         assert bundle.pod is not None
-        assert bundle.pod.PodName == "test-pod"
+        assert bundle.pod.PodName == "test"
         assert len(bundle.containers) == 1
         assert bundle.containers[0].Image == "nginx:latest"
-        assert bundle.containers[0].Pod == "test-pod"
+        assert bundle.containers[0].Pod == "test"
 
     def test_compose_with_name(self) -> None:
         data = {

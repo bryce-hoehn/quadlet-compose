@@ -269,15 +269,32 @@ class QuadletBundle:
         """Return the systemd service names for all units in this bundle.
 
         The Podman Quadlet generator names systemd services after the
-        **file stem**: ``{stem}.service`` where the quadlet filename is
-        ``{stem}.{ext}``.  This method derives names from the same
-        filenames :meth:`to_quadlet_files` produces, so the two always
-        agree.
+        **file stem** with a type suffix for non-container units:
+
+        * ``{stem}.container`` → ``{stem}.service``
+        * ``{stem}.pod``       → ``{stem}-pod.service``
+        * ``{stem}.network``   → ``{stem}-network.service``
+        * ``{stem}.volume``    → ``{stem}-volume.service``
+        * ``{stem}.build``     → ``{stem}-build.service``
+
+        This method derives names from the same filenames
+        :meth:`to_quadlet_files` produces, so the two always agree.
         """
+        # Mapping from quadlet extension to the suffix Quadlet appends
+        # to the stem when generating the systemd service name.
+        _SUFFIX: dict[str, str] = {
+            ".container": "",
+            ".pod": "-pod",
+            ".network": "-network",
+            ".volume": "-volume",
+            ".build": "-build",
+        }
         names: list[str] = []
         for filename in self.to_quadlet_files():
-            stem = filename.rsplit(".", 1)[0]
-            names.append(f"{stem}.service")
+            stem, ext = filename.rsplit(".", 1)
+            ext = f".{ext}"
+            suffix = _SUFFIX.get(ext, "")
+            names.append(f"{stem}{suffix}.service")
         return names
 
     def to_quadlet_files(self) -> dict[str, str]:
@@ -339,8 +356,11 @@ def map_compose(
 
     bundle.project_name = project_name
 
-    # Create pod for the project — PodName matches the Pod= reference
-    pod_name = f"{project_name}-pod"
+    # Create pod for the project.  Use the bare project name so the
+    # quadlet file ``{project_name}.pod`` maps to the systemd service
+    # ``{project_name}-pod.service`` (Quadlet appends ``-pod`` to the
+    # stem for .pod units).
+    pod_name = project_name
     bundle.pod = PodUnit(
         PodName=pod_name,
         ExitPolicy="stop",
