@@ -1,5 +1,5 @@
-from .compose_down import compose_down
-from .compose_up import compose_up
+from .compose_stop import compose_stop
+from .compose_start import compose_start
 
 
 def compose_restart(
@@ -7,5 +7,5 @@ def compose_restart(
 ) -> None:
     """Restart service containers (down + up)."""
 
-    compose_down(timeout=timeout)
-    compose_up(no_deps=no_deps, timeout=timeout)
+    compose_stop(timeout=timeout)
+    compose_start()
