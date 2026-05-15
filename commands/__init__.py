@@ -13,6 +13,8 @@ from .compose_ps import compose_ps as compose_ps
 from .compose_pull import compose_pull as compose_pull
 from .compose_restart import compose_restart as compose_restart
 from .compose_run import compose_run as compose_run
+from .compose_start import compose_start as compose_start
+from .compose_stop import compose_stop as compose_stop
 from .compose_top import compose_top as compose_top
 from .compose_up import compose_up as compose_up
 from .compose_version import compose_version as compose_version

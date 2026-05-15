@@ -111,3 +111,12 @@ def compose_up(
             ["systemctl", "--user", "start", svc],
             check=True,
         )
+
+    # Enable services with restart: always / unless-stopped so they survive reboots
+    for svc, policy in bundle.restart_policies.items():
+        if policy in ("always", "unless-stopped"):
+            console.print(f"enabling {svc} (restart: {policy})")
+            subprocess.run(
+                ["systemctl", "--user", "enable", svc],
+                check=True,
+            )
