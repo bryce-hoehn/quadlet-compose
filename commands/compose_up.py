@@ -96,16 +96,25 @@ def compose_up(
             path.unlink()
 
     # Write quadlet files to a temp dir, then install atomically via
-    # `podman quadlet install` which handles the generator + daemon-reload.
+    # `podman quadlet install` which handles copying + daemon-reload.
     with tempfile.TemporaryDirectory(prefix='quadlet-compose-') as tmp:
         tmp_dir = Path(tmp)
         for filename, content in quadlet_files.items():
             dest = tmp_dir / filename
             dest.write_text(content)
         subprocess.run(
-            ["podman", "quadlet", "install", "--replace", str(tmp_dir)],
+            ['podman', 'quadlet', 'install', '--replace', str(tmp_dir)],
             check=True,
         )
+
+    # Explicit daemon-reload to ensure the Quadlet generator has finished
+    # converting .container/.pod/.network/.volume → .service units before
+    # we try to start them.  `podman quadlet install` triggers reload via
+    # D-Bus asynchronously, so this synchronous reload acts as a barrier.
+    subprocess.run(
+        ['systemctl', '--user', 'daemon-reload'],
+        check=True,
+    )
 
     # Start all current services
     for svc in bundle.service_names():
