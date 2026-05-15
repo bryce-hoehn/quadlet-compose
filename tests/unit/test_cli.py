@@ -30,6 +30,8 @@ class TestCommandsList:
             "kill",
             "pull",
             "restart",
+            "start",
+            "stop",
             "run",
             "ps",
             "logs",

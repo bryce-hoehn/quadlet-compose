@@ -13,6 +13,8 @@ from commands import (
     compose_pull,
     compose_restart,
     compose_run,
+    compose_start,
+    compose_stop,
     compose_ps,
     compose_logs,
     compose_top,
@@ -515,6 +517,28 @@ COMMANDS = [
                     "default": 0,
                     "dest": "timeout",
                     "help": "Timeout in seconds",
+                },
+            ),
+        ],
+    },
+    {
+        "name": "start",
+        "help": "Start containers without daemon-reload",
+        "func": compose_start,
+        "args": [],
+    },
+    {
+        "name": "stop",
+        "help": "Stop containers without disabling them",
+        "func": compose_stop,
+        "args": [
+            (
+                ("-t", "--timeout"),
+                {
+                    "type": int,
+                    "default": None,
+                    "dest": "timeout",
+                    "help": "Timeout in seconds for container shutdown",
                 },
             ),
         ],
