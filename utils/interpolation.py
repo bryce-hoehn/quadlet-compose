@@ -154,12 +154,58 @@ class TemplateWithDefaults(Template):
 
 
 # ---------------------------------------------------------------------------
-# .env file loading
+# env_file loading
+# ---------------------------------------------------------------------------
+
+def _extract_env_file_paths(data: dict, compose_path: Path) -> list[Path]:
+    """Extract env_file paths from raw (un-interpolated) compose data.
+
+    Handles ``env_file`` as a string, a list of strings, or a list of
+    dicts with a ``path`` key.  Relative paths are resolved against the
+    compose file's parent directory.
+    """
+    paths: list[Path] = []
+    services = data.get('services') or {}
+    for svc_config in services.values():
+        if svc_config is None:
+            continue
+        env_file = svc_config.get('env_file')
+        if env_file is None:
+            continue
+        if isinstance(env_file, str):
+            paths.append(compose_path.parent / env_file)
+        elif isinstance(env_file, list):
+            for entry in env_file:
+                if isinstance(entry, str):
+                    paths.append(compose_path.parent / entry)
+                elif isinstance(entry, dict):
+                    p = entry.get('path')
+                    if p:
+                        paths.append(compose_path.parent / p)
+    return paths
+
+
+def _load_env_file_values(data: dict, compose_path: Path) -> dict[str, str]:
+    """Load variables from service-level ``env_file`` entries.
+
+    Missing files are silently skipped, matching docker-compose behaviour.
+    """
+    values: dict[str, str] = {}
+    for path in _extract_env_file_paths(data, compose_path):
+        if path.is_file():
+            loaded = dotenv_values(path)
+            values.update({k: v for k, v in loaded.items() if v is not None})
+    return values
+
+
+# ---------------------------------------------------------------------------
+# Variable map assembly
 # ---------------------------------------------------------------------------
 
 def _build_variable_map(
     compose_path: Path,
     env_override: dict[str, str] | None = None,
+    env_file_values: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Build the variable map for interpolation.
 
@@ -168,9 +214,13 @@ def _build_variable_map(
     1. *env_override* (explicit ``--env KEY=VAL`` from CLI)
     2. ``.env`` file in the compose file's parent directory
     3. Existing ``os.environ`` values
+    4. Service-level ``env_file`` values
     """
-    # Start with os.environ (lowest priority)
-    variables: dict[str, str] = dict(os.environ)
+    # Start with env_file values (lowest priority)
+    variables: dict[str, str] = dict(env_file_values) if env_file_values else {}
+
+    # os.environ overrides env_file
+    variables.update(os.environ)
 
     # .env file overrides os.environ
     dotenv_path = compose_path.parent / '.env'
@@ -216,9 +266,11 @@ def interpolating_yaml_load(
 ) -> dict:
     """Load and interpolate a compose YAML file in one pass.
 
-    1. Builds a variable map from ``os.environ``, CLI overrides, and ``.env``
-    2. Parses the YAML with ``yaml.safe_load``
-    3. Recursively resolves ``$VAR`` / ``${VAR}`` and modifier syntax
+    1. Parses the YAML with ``yaml.safe_load``
+    2. Loads variables from service-level ``env_file`` entries
+    3. Builds a variable map from ``env_file`` values, ``os.environ``,
+       ``.env``, and CLI overrides
+    4. Recursively resolves ``$VAR`` / ``${VAR}`` and modifier syntax
        via :class:`TemplateWithDefaults`
 
     Parameters
@@ -242,12 +294,15 @@ def interpolating_yaml_load(
     """
     from utils.compose import ComposeError
 
-    mapping = _build_variable_map(compose_path, env_override)
-
     with open(compose_path) as f:
         data = yaml.safe_load(f)
 
     if data is None:
         raise ComposeError(f'Compose file is empty: {compose_path}')
+
+    # Load env_file values from services (before building variable map)
+    env_file_values = _load_env_file_values(data, compose_path)
+
+    mapping = _build_variable_map(compose_path, env_override, env_file_values)
 
     return _interpolate_recursive(data, mapping)

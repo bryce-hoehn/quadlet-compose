@@ -334,9 +334,44 @@ class TestConvertVolumes:
         )
         assert result == {"Tmpfs": ["/tmp"]}
 
-    def test_short_form_string(self) -> None:
+    def test_short_form_named_volume(self) -> None:
         result = convert_volumes(["data:/data"])
         assert result == {"Volume": ["data:/data"]}
+
+    def test_short_form_bind_mount_relative_dot(self) -> None:
+        """``./data:/app/data`` → bind mount (source starts with ``.``)."""
+        result = convert_volumes(["./data:/app/data"])
+        assert result == {"Bind": ["./data:/app/data"]}
+
+    def test_short_form_bind_mount_relative_dotdot(self) -> None:
+        """``../data:/app/data`` → bind mount (source starts with ``.``)."""
+        result = convert_volumes(["../data:/app/data"])
+        assert result == {"Bind": ["../data:/app/data"]}
+
+    def test_short_form_bind_mount_absolute(self) -> None:
+        """``/host/path:/container/path`` → bind mount (source starts with ``/``)."""
+        result = convert_volumes(["/host/path:/container/path"])
+        assert result == {"Bind": ["/host/path:/container/path"]}
+
+    def test_short_form_bind_mount_home(self) -> None:
+        """``~/data:/app/data`` → bind mount (source starts with ``~``)."""
+        result = convert_volumes(["~/data:/app/data"])
+        assert result == {"Bind": ["~/data:/app/data"]}
+
+    def test_short_form_bind_mount_with_ro(self) -> None:
+        """``/host/path:/container/path:ro`` → bind mount with mode."""
+        result = convert_volumes(["/host/path:/container/path:ro"])
+        assert result == {"Bind": ["/host/path:/container/path:ro"]}
+
+    def test_short_form_bind_mount_with_rw(self) -> None:
+        """``/host/path:/container/path:rw`` → bind mount with mode."""
+        result = convert_volumes(["/host/path:/container/path:rw"])
+        assert result == {"Bind": ["/host/path:/container/path:rw"]}
+
+    def test_short_form_named_volume_with_ro(self) -> None:
+        """``myvolume:/data:ro`` → named volume with mode."""
+        result = convert_volumes(["myvolume:/data:ro"])
+        assert result == {"Volume": ["myvolume:/data:ro"]}
 
     def test_mixed_types(self) -> None:
         result = convert_volumes(
@@ -356,6 +391,25 @@ class TestConvertVolumes:
             "Bind": ["/host:/container:ro"],
             "Volume": ["data:/data", "short:/form"],
             "Tmpfs": ["/tmp"],
+        }
+
+    def test_mixed_short_form(self) -> None:
+        """Mix of short-form bind mounts and named volumes."""
+        result = convert_volumes(
+            [
+                "./data:/app/data",
+                "myvolume:/data",
+                "/host/path:/container/path",
+                "~/configs:/etc/app",
+            ]
+        )
+        assert result == {
+            "Bind": [
+                "./data:/app/data",
+                "/host/path:/container/path",
+                "~/configs:/etc/app",
+            ],
+            "Volume": ["myvolume:/data"],
         }
 
     def test_empty_list(self) -> None:
@@ -572,7 +626,7 @@ class TestConvertHealthcheck:
                 "test": ["CMD-SHELL", "curl -f http://localhost/ || exit 1"],
             }
         )
-        assert result == {"HealthCmd": "curl -f http://localhost/ || exit 1"}
+        assert result == {"HealthCmd": "'curl -f http://localhost/ || exit 1'"}
 
     def test_list_without_prefix(self) -> None:
         result = convert_healthcheck(
@@ -628,6 +682,42 @@ class TestConvertHealthcheck:
         )
         assert result["HealthRetries"] == "0"
 
+    def test_cmd_with_spaces_in_arg(self) -> None:
+        """Args containing spaces should be properly quoted via shlex.quote()."""
+        result = convert_healthcheck(
+            {
+                "test": ["CMD", "curl", "-f", "http://localhost/hello world"],
+            }
+        )
+        assert result == {"HealthCmd": "curl -f 'http://localhost/hello world'"}
+
+    def test_cmd_with_special_chars_in_arg(self) -> None:
+        """Args with shell-special characters should be quoted."""
+        result = convert_healthcheck(
+            {
+                "test": ["CMD", "echo", "hello && rm -rf /"],
+            }
+        )
+        assert result == {"HealthCmd": "echo 'hello && rm -rf /'"}
+
+    def test_list_without_prefix_with_spaces(self) -> None:
+        """List without CMD/CMD-SHELL prefix should also quote args with spaces."""
+        result = convert_healthcheck(
+            {
+                "test": ["curl", "-f", "http://localhost/hello world"],
+            }
+        )
+        assert result == {"HealthCmd": "curl -f 'http://localhost/hello world'"}
+
+    def test_cmd_no_spaces_unchanged(self) -> None:
+        """Args without spaces should not be quoted."""
+        result = convert_healthcheck(
+            {
+                "test": ["CMD", "curl", "-f", "http://localhost/"],
+            }
+        )
+        assert result == {"HealthCmd": "curl -f http://localhost/"}
+
 
 # ---------------------------------------------------------------------------
 # Networks
@@ -639,12 +729,89 @@ class TestConvertNetworks:
         assert convert_networks(None) == {}
 
     def test_list(self) -> None:
-        result = convert_networks(["frontend", "backend"])
-        assert result == {"Network": ["frontend", "backend"]}
+        result = convert_networks(['frontend', 'backend'])
+        assert result == {'Network': ['frontend', 'backend']}
 
-    def test_dict(self) -> None:
-        result = convert_networks({"frontend": None, "backend": {"aliases": ["web"]}})
-        assert result == {"Network": ["frontend", "backend"]}
+    def test_dict_with_none_values(self) -> None:
+        result = convert_networks({'frontend': None, 'backend': None})
+        assert result == {'Network': ['frontend', 'backend']}
+
+    def test_dict_with_aliases(self) -> None:
+        result = convert_networks({
+            'frontend': None,
+            'backend': {'aliases': ['web']},
+        })
+        assert result == {
+            'Network': ['frontend', 'backend'],
+            'NetworkAlias': ['web'],
+        }
+
+    def test_dict_with_ipv4_address(self) -> None:
+        result = convert_networks({
+            'frontend': {'ipv4_address': '172.20.0.10'},
+        })
+        assert result == {
+            'Network': ['frontend'],
+            'IP': '172.20.0.10',
+        }
+
+    def test_dict_with_ipv6_address(self) -> None:
+        result = convert_networks({
+            'frontend': {'ipv6_address': 'fe80::1'},
+        })
+        assert result == {
+            'Network': ['frontend'],
+            'IP6': 'fe80::1',
+        }
+
+    def test_dict_with_mac_address(self) -> None:
+        result = convert_networks({
+            'frontend': {'mac_address': '02:42:ac:11:00:01'},
+        })
+        assert result == {
+            'Network': ['frontend'],
+            'PodmanArgs': ['--mac-address=02:42:ac:11:00:01'],
+        }
+
+    def test_dict_with_multiple_config_options(self) -> None:
+        result = convert_networks({
+            'frontend': {
+                'aliases': ['web', 'app'],
+                'ipv4_address': '172.20.0.10',
+                'ipv6_address': 'fe80::1',
+                'mac_address': '02:42:ac:11:00:01',
+            },
+        })
+        assert result == {
+            'Network': ['frontend'],
+            'NetworkAlias': ['web', 'app'],
+            'IP': '172.20.0.10',
+            'IP6': 'fe80::1',
+            'PodmanArgs': ['--mac-address=02:42:ac:11:00:01'],
+        }
+
+    def test_dict_multiple_networks_with_config(self) -> None:
+        """Last network wins for IP fields; aliases are accumulated."""
+        result = convert_networks({
+            'frontend': {'ipv4_address': '172.20.0.10', 'aliases': ['web']},
+            'backend': {'ipv4_address': '172.21.0.20', 'aliases': ['api']},
+        })
+        assert result == {
+            'Network': ['frontend', 'backend'],
+            'NetworkAlias': ['web', 'api'],
+            'IP': '172.21.0.20',
+        }
+
+    def test_dict_unsupported_fields_dropped(self) -> None:
+        """``link_local_ips``, ``priority``, ``driver_opts`` are silently dropped."""
+        result = convert_networks({
+            'frontend': {
+                'link_local_ips': ['169.254.0.1'],
+                'priority': 100,
+                'driver_opts': {'com.docker.some': 'value'},
+            },
+        })
+        assert result == {'Network': ['frontend']}
 
     def test_empty_list(self) -> None:
         assert convert_networks([]) == {}

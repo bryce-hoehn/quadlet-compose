@@ -1,6 +1,9 @@
 """Converter functions for compose Service → Quadlet ContainerUnit fields."""
 
+import shlex
 from typing import Any
+
+from pydantic import BaseModel
 
 from ._helpers import _as_list, _as_optional_list
 from ._duration import _parse_duration_seconds
@@ -165,8 +168,37 @@ def convert_expose(value: Any) -> dict[str, Any]:
     return {"ExposePort": [str(v) for v in _as_list(value)]}
 
 
+def _is_bind_mount_source(source: str) -> bool:
+    """Return ``True`` if *source* looks like a host path (bind mount).
+
+    docker-compose v1 VolumeSpec rules: a source starting with ``.``, ``/``,
+    or ``~`` is a bind mount; otherwise it is a named volume.
+    """
+    return source.startswith('.') or source.startswith('/') or source.startswith('~')
+
+
+def _volume_entry_to_dict(entry: Any) -> dict[str, Any]:
+    """Normalise a volume entry to a plain dict.
+
+    The compose-spec Pydantic models represent long-form volumes as
+    ``ServiceVolumes`` instances.  Converters expect plain dicts, so
+    this helper unwraps them.
+    """
+    if isinstance(entry, BaseModel):
+        return entry.model_dump(exclude_none=True)
+    if isinstance(entry, dict):
+        return entry
+    return {}
+
+
 def convert_volumes(value: Any) -> dict[str, Any]:
-    """Convert compose ``volumes`` to ``Volume`` / ``Bind`` / ``Tmpfs`` lines."""
+    """Convert compose ``volumes`` to ``Volume`` / ``Bind`` / ``Tmpfs`` lines.
+
+    Short-form strings are classified using docker-compose v1 VolumeSpec rules:
+
+    * Source starting with ``.``, ``/``, or ``~`` → bind mount (``Bind``)
+    * Otherwise → named volume (``Volume``)
+    """
     if value is None:
         return {}
     volumes: list[str] = []
@@ -174,15 +206,16 @@ def convert_volumes(value: Any) -> dict[str, Any]:
     tmpfs_list: list[str] = []
     entries = [value] if isinstance(value, str) else value
     for entry in entries:
-        if isinstance(entry, dict):
-            vtype = entry.get("type", "bind")
-            source = entry.get("source", "")
-            target = entry.get("target", "")
+        if isinstance(entry, dict) or isinstance(entry, BaseModel):
+            d = _volume_entry_to_dict(entry)
+            vtype = d.get("type", "bind")
+            source = d.get("source", "")
+            target = d.get("target", "")
             if vtype == "volume":
                 volumes.append(f"{source}:{target}" if source else target)
             elif vtype == "bind":
                 opts = []
-                if entry.get("read_only"):
+                if d.get("read_only"):
                     opts.append("ro")
                 bind_str = f"{source}:{target}"
                 if opts:
@@ -191,8 +224,15 @@ def convert_volumes(value: Any) -> dict[str, Any]:
             elif vtype == "tmpfs":
                 tmpfs_list.append(target)
         else:
-            # Short-form string
-            volumes.append(str(entry))
+            # Short-form string: classify as bind mount or named volume
+            # based on the source path per docker-compose v1 VolumeSpec rules.
+            vol_str = str(entry)
+            parts = vol_str.split(':')
+            source = parts[0]
+            if _is_bind_mount_source(source):
+                binds.append(vol_str)
+            else:
+                volumes.append(vol_str)
     result: dict[str, Any] = {}
     if volumes:
         result["Volume"] = volumes
@@ -312,9 +352,9 @@ def convert_healthcheck(value: Any) -> dict[str, Any]:
             if isinstance(test, list):
                 # Remove the CMD/CMD-SHELL prefix if present
                 if test and test[0] in ("CMD", "CMD-SHELL"):
-                    cmd = " ".join(test[1:]) if len(test) > 1 else ""
+                    cmd = " ".join(shlex.quote(arg) for arg in test[1:]) if len(test) > 1 else ""
                 else:
-                    cmd = " ".join(test)
+                    cmd = " ".join(shlex.quote(arg) for arg in test)
                 result["HealthCmd"] = cmd
             else:
                 result["HealthCmd"] = str(test)
@@ -341,12 +381,63 @@ def convert_healthcheck(value: Any) -> dict[str, Any]:
 
 
 def convert_networks(value: Any) -> dict[str, Any]:
-    """Convert compose ``networks`` to ``Network`` lines."""
+    """Convert compose ``networks`` to ``Network`` lines with per-network config.
+
+    When *networks* is a dict with per-network config objects, the config
+    is preserved using Quadlet fields where possible:
+
+    * ``aliases``       → ``NetworkAlias=`` lines
+    * ``ipv4_address``  → ``IP=`` scalar (last network wins)
+    * ``ipv6_address``  → ``IP6=`` scalar (last network wins)
+    * ``mac_address``   → ``PodmanArgs=--mac-address=<value>``
+
+    Fields not directly supported by Quadlet (``link_local_ips``,
+    ``priority``, ``driver_opts``) are silently dropped.  When multiple
+    networks specify ``ipv4_address`` / ``ipv6_address``, the last one
+    wins — this matches docker-compose behaviour where only one static
+    IP per address family is meaningful.
+    """
     if value is None:
         return {}
     networks: list[str] = []
+    aliases: list[str] = []
+    ip: str | None = None
+    ip6: str | None = None
+    podman_args: list[str] = []
+
     if isinstance(value, list):
         networks = [str(v) for v in value]
     elif isinstance(value, dict):
-        networks = list(value.keys())
-    return {"Network": networks} if networks else {}
+        for net_name, net_config in value.items():
+            networks.append(str(net_name))
+            if net_config is None:
+                continue
+            # Unwrap Pydantic model to dict if needed
+            if isinstance(net_config, BaseModel):
+                net_config = net_config.model_dump(exclude_none=True)
+            if isinstance(net_config, dict):
+                net_aliases = net_config.get('aliases')
+                if net_aliases:
+                    aliases.extend(str(a) for a in net_aliases)
+                ipv4 = net_config.get('ipv4_address')
+                if ipv4:
+                    ip = str(ipv4)
+                ipv6 = net_config.get('ipv6_address')
+                if ipv6:
+                    ip6 = str(ipv6)
+                mac_addr = net_config.get('mac_address')
+                if mac_addr:
+                    podman_args.append(f'--mac-address={mac_addr}')
+
+    result: dict[str, Any] = {}
+    if networks:
+        result['Network'] = networks
+    if aliases:
+        result['NetworkAlias'] = aliases
+    if ip:
+        result['IP'] = ip
+    if ip6:
+        result['IP6'] = ip6
+    if podman_args:
+        result['PodmanArgs'] = podman_args
+    return result

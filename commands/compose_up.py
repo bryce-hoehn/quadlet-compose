@@ -9,7 +9,7 @@ from rich.console import Console
 
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
-from utils.quadlet import enable_service, get_unit_directory
+from utils.quadlet import get_unit_directory
 
 QUADLET_EXTENSIONS = frozenset(
     {".container", ".pod", ".network", ".volume", ".build"},
@@ -96,7 +96,7 @@ def compose_up(
             path.unlink()
 
     # Write quadlet files to a temp dir, then install atomically via
-    # `podman quadlet install` which handles copying + daemon-reload.
+    # `podman quadlet install`
     with tempfile.TemporaryDirectory(prefix='quadlet-compose-') as tmp:
         tmp_dir = Path(tmp)
         for filename, content in quadlet_files.items():
@@ -107,15 +107,6 @@ def compose_up(
             check=True,
         )
 
-    # Explicit daemon-reload to ensure the Quadlet generator has finished
-    # converting .container/.pod/.network/.volume → .service units before
-    # we try to start them.  `podman quadlet install` triggers reload via
-    # D-Bus asynchronously, so this synchronous reload acts as a barrier.
-    subprocess.run(
-        ['systemctl', '--user', 'daemon-reload'],
-        check=True,
-    )
-
     # Start all current services
     for svc in bundle.service_names():
         console.print(f"starting {svc}")
@@ -123,13 +114,3 @@ def compose_up(
             ["systemctl", "--user", "start", svc],
             check=True,
         )
-
-    # Enable services with restart: always / unless-stopped so they survive
-    # reboots.  We cannot use ``systemctl --user enable`` because systemd
-    # refuses to enable generated units (those in
-    # /run/user/{uid}/systemd/generator/).  Instead we create the
-    # WantedBy=default.target symlink manually.
-    for svc, policy in bundle.restart_policies.items():
-        if policy in ("always", "unless-stopped"):
-            console.print(f"enabling {svc} (restart: {policy})")
-            enable_service(svc)

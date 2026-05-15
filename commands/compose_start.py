@@ -6,7 +6,6 @@ from rich.console import Console
 
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
-from utils.quadlet import enable_service
 
 
 def compose_start(
@@ -16,8 +15,9 @@ def compose_start(
     """Start containers without re-writing quadlet files or daemon-reload.
 
     Unlike ``compose_up``, this assumes quadlet files are already in place.
-    It simply starts the systemd units and enables any with
-    ``restart: always`` or ``restart: unless-stopped``.
+    It simply starts the systemd units.  Services with ``restart: always``
+    or ``restart: unless-stopped`` are auto-enabled by the Quadlet
+    generator via the ``[Install]`` section in the unit file.
     """
     console = Console()
     compose_path = resolve_compose_path(compose_file)
@@ -32,11 +32,3 @@ def compose_start(
             ["systemctl", "--user", "start", svc],
             check=True,
         )
-
-    # Enable services with restart: always / unless-stopped.
-    # ``systemctl --user enable`` refuses to operate on generated units,
-    # so we create the WantedBy=default.target symlink manually.
-    for svc, policy in bundle.restart_policies.items():
-        if policy in ("always", "unless-stopped"):
-            console.print(f"enabling {svc} (restart: {policy})")
-            enable_service(svc)

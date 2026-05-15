@@ -343,40 +343,33 @@ def map_compose(
     Returns:
         A ``QuadletBundle`` containing all generated quadlet units.
     """
-    from models.compose import ComposeSpecification
-
-    spec = ComposeSpecification.model_validate(compose_data)
     bundle = QuadletBundle()
 
     # Determine project name
     if not project_name:
-        project_name = spec.name or (
+        project_name = compose_data.get('name') or (
             compose_path.parent.name if compose_path else "default"
         )
 
     bundle.project_name = project_name
 
-    # Create pod for the project.  The pod file is named
-    # ``{project_name}.pod`` and Quadlet's ``Pod=`` directive requires
-    # the **full Quadlet filename** (including the ``.pod`` extension)
-    # so that the generator can resolve the reference via
-    # ``unitsInfoMap``.  Quadlet appends ``-pod`` to the file stem
+    # Create pod for the project.
+    # Quadlet appends ``-pod`` to the file stem
     # when generating the systemd service name (e.g. ``jellyfin.pod``
     # → ``jellyfin-pod.service``).
+
     pod_service_name = f'{project_name}.pod'
     bundle.pod = PodUnit(
         PodName=project_name,
         ExitPolicy="stop",
     )
 
-    # Resolve the compose file's parent directory for relative path
-    # resolution.  Quadlet files live in ~/.config/containers/systemd/,
-    # so relative paths must be made absolute before writing them.
     compose_dir = compose_path.parent if compose_path else Path.cwd()
 
     # Map services
-    if spec.services:
-        for svc_name, svc in spec.services.items():
+    services = compose_data.get('services', {})
+    if services:
+        for svc_name, svc in services.items():
             svc_model = Service.model_validate(svc) if isinstance(svc, dict) else svc
 
             # Handle build config
@@ -399,28 +392,31 @@ def map_compose(
                 pod_name=pod_service_name,
             )
 
-            # Resolve relative volume paths against the compose file
-            # directory.  Quadlet resolves relative paths against the
-            # unit file location (~/.config/containers/systemd/), which
-            # is almost never what the user intends.
-            if container.Volume:
-                resolved: list[str] = []
-                for vol in container.Volume:
+            # Resolve relative paths in bind-mount sources against the
+            # compose file directory.  Named volumes never have relative
+            # sources, so only Bind entries need this treatment.
+            if container.Bind:
+                resolved_binds: list[str] = []
+                for vol in container.Bind:
                     parts = vol.split(':', 2)
                     source = parts[0]
                     if source.startswith('./') or source.startswith('../'):
                         source = str((compose_dir / source).resolve())
                         parts[0] = source
-                    resolved.append(':'.join(parts))
-                container.Volume = resolved
+                    resolved_binds.append(':'.join(parts))
+                container.Bind = resolved_binds
 
             # Podman requires PublishPort on the *pod*, not individual
             # containers, when containers share a pod's network
-            # namespace.  Migrate ports from the container to the pod.
+            # namespace.
             if container.PublishPort and bundle.pod is not None:
                 if bundle.pod.PublishPort is None:
                     bundle.pod.PublishPort = []
-                bundle.pod.PublishPort.extend(container.PublishPort)
+                seen = set(bundle.pod.PublishPort)
+                for port in container.PublishPort:
+                    if port not in seen:
+                        seen.add(port)
+                        bundle.pod.PublishPort.append(port)
                 container.PublishPort = None
 
             bundle.containers.append(container)
@@ -436,16 +432,14 @@ def map_compose(
                     svc_model.restart
                 )
 
-            # Add [Install] section so ``systemctl --user enable`` works
-            # on the Quadlet-generated .service unit.  Without an
-            # [Install] section systemd refuses with
-            # "Unit … is transient or generated".
+            # Add [Install] section with WantedBy=default.target for containers with restart policies.
             if svc_model.restart in ("always", "unless-stopped"):
                 container.install = {"WantedBy": "default.target"}
 
     # Map networks
-    if spec.networks:
-        for net_name, net in spec.networks.items():
+    networks = compose_data.get('networks', {})
+    if networks:
+        for net_name, net in networks.items():
             if net is None:
                 net = {}
             net_model = Network.model_validate(net) if isinstance(net, dict) else net
@@ -460,8 +454,9 @@ def map_compose(
             bundle.networks.append(network_unit)
 
     # Map volumes
-    if spec.volumes:
-        for vol_name, vol in spec.volumes.items():
+    volumes = compose_data.get('volumes', {})
+    if volumes:
+        for vol_name, vol in volumes.items():
             if vol is None:
                 vol = {}
             vol_model = Volume.model_validate(vol) if isinstance(vol, dict) else vol

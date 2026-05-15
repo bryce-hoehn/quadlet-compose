@@ -80,6 +80,7 @@ class ContainerUnit(QuadletUnit):
         "AddDevice",
         "AddHost",
         "Annotation",
+        "Bind",
         "ContainersConfModule",
         "DNS",
         "DNSOption",
@@ -730,11 +731,18 @@ class ContainerUnit(QuadletUnit):
 
     # -- Volumes ---------------------------------------------------------------
 
+    Bind: list[str] | None = Field(
+        default=None,
+        description=(
+            "Bind mount a host path (``HOST-DIR[:CONTAINER-DIR[:OPTIONS]]``). "
+            "Corresponds to ``--volume`` type bind. May be specified multiple times."
+        ),
+    )
     Volume: list[str] | None = Field(
         default=None,
         description=(
-            "Bind mount (``[[SOURCE-VOLUME|HOST-DIR:]CONTAINER-DIR[:OPTIONS]]``). "
-            "Corresponds to ``--volume``. May be specified multiple times."
+            "Mount a named volume (``VOLUME-NAME[:CONTAINER-DIR[:OPTIONS]]``). "
+            "Corresponds to ``--volume`` type volume. May be specified multiple times."
         ),
     )
 

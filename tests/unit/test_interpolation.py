@@ -11,6 +11,8 @@ from utils.interpolation import (
     InvalidInterpolation,
     TemplateWithDefaults,
     UnsetRequiredSubstitution,
+    _extract_env_file_paths,
+    _load_env_file_values,
     interpolating_yaml_load,
 )
 
@@ -244,3 +246,216 @@ class TestParseComposeInterpolation:
         with patch.dict(os.environ, {'TEST_IMG': 'nginx:latest'}):
             data = parse_compose(compose, no_interpolate=True)
         assert data['services']['web']['image'] == '${TEST_IMG}'
+
+
+# ---------------------------------------------------------------------------
+# _extract_env_file_paths — unit tests
+# ---------------------------------------------------------------------------
+
+class TestExtractEnvFilePaths:
+    """Tests for _extract_env_file_paths()."""
+
+    def test_string_env_file(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        data = {'services': {'web': {'env_file': '.env.web'}}}
+        paths = _extract_env_file_paths(data, compose)
+        assert paths == [tmp_path / '.env.web']
+
+    def test_list_of_strings(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        data = {'services': {'web': {'env_file': ['.env.web', '.env.db']}}}
+        paths = _extract_env_file_paths(data, compose)
+        assert paths == [tmp_path / '.env.web', tmp_path / '.env.db']
+
+    def test_list_of_dicts(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        data = {
+            'services': {
+                'web': {'env_file': [{'path': '.env.web', 'required': True}]},
+            },
+        }
+        paths = _extract_env_file_paths(data, compose)
+        assert paths == [tmp_path / '.env.web']
+
+    def test_mixed_list(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        data = {
+            'services': {
+                'web': {
+                    'env_file': ['.env.common', {'path': '.env.web'}],
+                },
+            },
+        }
+        paths = _extract_env_file_paths(data, compose)
+        assert paths == [tmp_path / '.env.common', tmp_path / '.env.web']
+
+    def test_no_env_file(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        data = {'services': {'web': {'image': 'nginx'}}}
+        paths = _extract_env_file_paths(data, compose)
+        assert paths == []
+
+    def test_no_services(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        data = {}
+        paths = _extract_env_file_paths(data, compose)
+        assert paths == []
+
+    def test_multiple_services(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        data = {
+            'services': {
+                'web': {'env_file': '.env.web'},
+                'db': {'env_file': ['.env.db']},
+            },
+        }
+        paths = _extract_env_file_paths(data, compose)
+        assert paths == [tmp_path / '.env.web', tmp_path / '.env.db']
+
+    def test_relative_path_resolved(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        data = {'services': {'web': {'env_file': '../shared.env'}}}
+        paths = _extract_env_file_paths(data, compose)
+        assert paths == [compose.parent / '../shared.env']
+        # Verify the path resolves correctly for file access
+        assert paths[0].resolve() == (tmp_path.parent / 'shared.env').resolve()
+
+    def test_none_service_config(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        data = {'services': {'web': None}}
+        paths = _extract_env_file_paths(data, compose)
+        assert paths == []
+
+
+# ---------------------------------------------------------------------------
+# _load_env_file_values — unit tests
+# ---------------------------------------------------------------------------
+
+class TestLoadEnvFileValues:
+    """Tests for _load_env_file_values()."""
+
+    def test_loads_from_env_file(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        (tmp_path / 'web.env').write_text('DB_HOST=db\nDB_PORT=5432\n')
+        data = {'services': {'web': {'env_file': 'web.env'}}}
+        values = _load_env_file_values(data, compose)
+        assert values == {'DB_HOST': 'db', 'DB_PORT': '5432'}
+
+    def test_missing_file_skipped(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        data = {'services': {'web': {'env_file': 'nonexistent.env'}}}
+        values = _load_env_file_values(data, compose)
+        assert values == {}
+
+    def test_multiple_files_merged(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        (tmp_path / 'a.env').write_text('A=1\nSHARED=from_a\n')
+        (tmp_path / 'b.env').write_text('B=2\nSHARED=from_b\n')
+        data = {'services': {'web': {'env_file': ['a.env', 'b.env']}}}
+        values = _load_env_file_values(data, compose)
+        assert values == {'A': '1', 'B': '2', 'SHARED': 'from_b'}
+
+    def test_multiple_services(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        (tmp_path / 'web.env').write_text('WEB_VAR=webval\n')
+        (tmp_path / 'db.env').write_text('DB_VAR=dbval\n')
+        data = {
+            'services': {
+                'web': {'env_file': 'web.env'},
+                'db': {'env_file': 'db.env'},
+            },
+        }
+        values = _load_env_file_values(data, compose)
+        assert values == {'WEB_VAR': 'webval', 'DB_VAR': 'dbval'}
+
+
+# ---------------------------------------------------------------------------
+# env_file interpolation — integration tests
+# ---------------------------------------------------------------------------
+
+class TestEnvFileInterpolation:
+    """Integration tests for env_file values being available for interpolation."""
+
+    def test_env_file_var_interpolated(self, tmp_path: Path) -> None:
+        """Variables from env_file should be available for interpolation."""
+        compose = tmp_path / 'compose.yaml'
+        (tmp_path / 'app.env').write_text('DB_HOST=mydb\n')
+        compose.write_text(
+            'services:\n  web:\n    env_file: app.env\n    image: ${DB_HOST}\n'
+        )
+        os.environ.pop('DB_HOST', None)
+        data = interpolating_yaml_load(compose)
+        assert data['services']['web']['image'] == 'mydb'
+
+    def test_os_environ_overrides_env_file(self, tmp_path: Path) -> None:
+        """OS env vars should take precedence over env_file values."""
+        compose = tmp_path / 'compose.yaml'
+        (tmp_path / 'app.env').write_text('DB_HOST=from_envfile\n')
+        compose.write_text(
+            'services:\n  web:\n    env_file: app.env\n    image: ${DB_HOST}\n'
+        )
+        with patch.dict(os.environ, {'DB_HOST': 'from_os'}):
+            data = interpolating_yaml_load(compose)
+        assert data['services']['web']['image'] == 'from_os'
+
+    def test_dotenv_overrides_env_file(self, tmp_path: Path) -> None:
+        """The .env file should take precedence over env_file values."""
+        compose = tmp_path / 'compose.yaml'
+        (tmp_path / 'app.env').write_text('DB_HOST=from_envfile\n')
+        (tmp_path / '.env').write_text('DB_HOST=from_dotenv\n')
+        compose.write_text(
+            'services:\n  web:\n    env_file: app.env\n    image: ${DB_HOST}\n'
+        )
+        os.environ.pop('DB_HOST', None)
+        data = interpolating_yaml_load(compose)
+        assert data['services']['web']['image'] == 'from_dotenv'
+
+    def test_cli_overrides_env_file(self, tmp_path: Path) -> None:
+        """CLI --env should take precedence over env_file values."""
+        compose = tmp_path / 'compose.yaml'
+        (tmp_path / 'app.env').write_text('DB_HOST=from_envfile\n')
+        compose.write_text(
+            'services:\n  web:\n    env_file: app.env\n    image: ${DB_HOST}\n'
+        )
+        data = interpolating_yaml_load(
+            compose,
+            env_override={'DB_HOST': 'from_cli'},
+        )
+        assert data['services']['web']['image'] == 'from_cli'
+
+    def test_missing_env_file_handled_gracefully(self, tmp_path: Path) -> None:
+        """A missing env_file should not cause an error."""
+        compose = tmp_path / 'compose.yaml'
+        compose.write_text(
+            'services:\n  web:\n    env_file: nonexistent.env\n'
+            '    image: ${MY_IMG:-default}\n'
+        )
+        os.environ.pop('MY_IMG', None)
+        data = interpolating_yaml_load(compose)
+        assert data['services']['web']['image'] == 'default'
+
+    def test_env_file_as_list(self, tmp_path: Path) -> None:
+        """env_file as a list of paths should work."""
+        compose = tmp_path / 'compose.yaml'
+        (tmp_path / 'first.env').write_text('HOST=first\n')
+        (tmp_path / 'second.env').write_text('PORT=8080\n')
+        compose.write_text(
+            'services:\n  web:\n    env_file:\n      - first.env\n'
+            '      - second.env\n    image: "${HOST}:${PORT}"\n'
+        )
+        os.environ.pop('HOST', None)
+        os.environ.pop('PORT', None)
+        data = interpolating_yaml_load(compose)
+        assert data['services']['web']['image'] == 'first:8080'
+
+    def test_env_file_from_other_service(self, tmp_path: Path) -> None:
+        """env_file from one service should be available for all interpolation."""
+        compose = tmp_path / 'compose.yaml'
+        (tmp_path / 'db.env').write_text('DB_HOST=mydb\n')
+        compose.write_text(
+            'services:\n  db:\n    env_file: db.env\n    image: postgres\n'
+            '  web:\n    image: ${DB_HOST}\n'
+        )
+        os.environ.pop('DB_HOST', None)
+        data = interpolating_yaml_load(compose)
+        assert data['services']['web']['image'] == 'mydb'

@@ -203,7 +203,7 @@ class TestMapService:
         assert unit.HealthInterval is not None
         assert unit.HealthRetries == 3
 
-    def test_service_with_volumes(self) -> None:
+    def test_service_with_bind_mount(self) -> None:
         svc = Service.model_validate(
             {
                 "image": "nginx:latest",
@@ -213,7 +213,21 @@ class TestMapService:
             }
         )
         unit = map_service(svc, service_name="web")
+        assert unit.Bind is not None
+        assert unit.Bind == ["/host:/container"]
+
+    def test_service_with_named_volume(self) -> None:
+        svc = Service.model_validate(
+            {
+                "image": "nginx:latest",
+                "volumes": [
+                    {"type": "volume", "source": "data", "target": "/data"},
+                ],
+            }
+        )
+        unit = map_service(svc, service_name="web")
         assert unit.Volume is not None
+        assert unit.Volume == ["data:/data"]
 
     def test_service_no_image_no_build(self) -> None:
         """When no image and no build, service_name is used as Image."""
@@ -701,3 +715,78 @@ class TestMapCompose:
         bundle = map_compose(data, project_name="test")
         container = bundle.containers[0]
         assert container.install is None
+
+    def test_port_deduplication_across_services(self) -> None:
+        """Duplicate PublishPort values from different services are deduplicated on the pod."""
+        data = {
+            "services": {
+                "web": {"image": "nginx:latest", "ports": ["8080:80"]},
+                "api": {"image": "myapi:latest", "ports": ["8080:80", "9090:90"]},
+            },
+        }
+        bundle = map_compose(data, project_name="test")
+        assert bundle.pod is not None
+        pod_ports = bundle.pod.PublishPort
+        assert pod_ports is not None
+        assert pod_ports.count("8080:80") == 1, (
+            f'Expected exactly one "8080:80", got {pod_ports}'
+        )
+        assert "9090:90" in pod_ports
+        # Container units should have PublishPort cleared
+        for c in bundle.containers:
+            assert c.PublishPort is None
+
+    def test_bind_mount_relative_path_resolution(self) -> None:
+        """Relative bind mount sources are resolved against the compose file directory."""
+        data = {
+            "services": {
+                "web": {
+                    "image": "nginx:latest",
+                    "volumes": ["./data:/app/data", "../config:/etc/app"],
+                },
+            },
+        }
+        compose_path = Path("/home/user/myproject/docker-compose.yml")
+        bundle = map_compose(data, project_name="test", compose_path=compose_path)
+        container = bundle.containers[0]
+        assert container.Bind is not None
+        assert len(container.Bind) == 2
+        # Use sets for comparison because compose-spec volumes are stored
+        # as a set (unordered).
+        assert set(container.Bind) == {
+            "/home/user/myproject/data:/app/data",
+            "/home/user/config:/etc/app",
+        }
+
+    def test_bind_mount_absolute_path_unchanged(self) -> None:
+        """Absolute bind mount sources are not modified."""
+        data = {
+            "services": {
+                "web": {
+                    "image": "nginx:latest",
+                    "volumes": ["/host/path:/container/path"],
+                },
+            },
+        }
+        compose_path = Path("/home/user/myproject/docker-compose.yml")
+        bundle = map_compose(data, project_name="test", compose_path=compose_path)
+        container = bundle.containers[0]
+        assert container.Bind is not None
+        assert container.Bind == ["/host/path:/container/path"]
+
+    def test_named_volume_not_resolved(self) -> None:
+        """Named volumes should not have path resolution applied."""
+        data = {
+            "services": {
+                "web": {
+                    "image": "nginx:latest",
+                    "volumes": ["myvolume:/data"],
+                },
+            },
+        }
+        compose_path = Path("/home/user/myproject/docker-compose.yml")
+        bundle = map_compose(data, project_name="test", compose_path=compose_path)
+        container = bundle.containers[0]
+        assert container.Bind is None
+        assert container.Volume is not None
+        assert container.Volume == ["myvolume:/data"]
