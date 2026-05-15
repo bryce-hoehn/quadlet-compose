@@ -8,8 +8,11 @@ from commands import (
     compose_up,
     compose_down,
     compose_build,
+    compose_exec,
+    compose_kill,
     compose_pull,
     compose_restart,
+    compose_run,
     compose_ps,
     compose_logs,
     compose_top,
@@ -179,20 +182,20 @@ COMMANDS = [
                 },
             ),
             (
-                "-t",
-                "--timeout",
+                ("-t", "--timeout"),
                 {
                     "type": int,
                     "default": None,
+                    "dest": "timeout",
                     "help": "Timeout in seconds for container shutdown",
                 },
             ),
             (
-                "-V",
-                "--renew-anon-volumes",
+                ("-V", "--renew-anon-volumes"),
                 {
                     "action": "store_true",
                     "default": False,
+                    "dest": "renew_anon_volumes",
                     "help": "Recreate anonymous volumes",
                 },
             ),
@@ -237,20 +240,20 @@ COMMANDS = [
                 },
             ),
             (
-                "-w",
-                "--watch",
+                ("-w", "--watch"),
                 {
                     "action": "store_true",
                     "default": False,
+                    "dest": "watch",
                     "help": "Watch source code and rebuild on change",
                 },
             ),
             (
-                "-y",
-                "--yes",
+                ("-y", "--yes"),
                 {
                     "action": "store_true",
                     "default": False,
+                    "dest": "yes",
                     "help": "Assume yes to all prompts",
                 },
             ),
@@ -274,21 +277,220 @@ COMMANDS = [
                 {"choices": ["local", "all"], "default": None, "help": "Remove images"},
             ),
             (
-                "-t",
-                "--timeout",
+                ("-t", "--timeout"),
                 {
                     "type": int,
                     "default": 0,
+                    "dest": "timeout",
                     "help": "Timeout in seconds for container shutdown",
                 },
             ),
             (
-                "-v",
-                "--volumes",
+                ("-v", "--volumes"),
                 {
                     "action": "store_true",
                     "default": False,
+                    "dest": "volumes",
                     "help": "Remove named volumes declared as external",
+                },
+            ),
+        ],
+    },
+    {
+        "name": "exec",
+        "help": "Execute a command in a running service container",
+        "func": compose_exec,
+        "args": [
+            ("service", {"help": "Service name"}),
+            ("command", {"nargs": "*", "help": "Command to execute"}),
+            (
+                ("-d", "--detach"),
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "dest": "detach",
+                    "help": "Run in background",
+                },
+            ),
+            (
+                "--env",
+                {
+                    "action": "append",
+                    "default": None,
+                    "help": "Set environment variables",
+                },
+            ),
+            (
+                ("--index",),
+                {
+                    "type": int,
+                    "default": 1,
+                    "help": "Container index if service has multiple instances",
+                },
+            ),
+            (
+                ("-T", "--no-tty"),
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "dest": "no_tty",
+                    "help": "Disable pseudo-TTY allocation",
+                },
+            ),
+            (
+                "--privileged",
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "help": "Give extended privileges",
+                },
+            ),
+            (
+                ("--user", "-u"),
+                {
+                    "default": None,
+                    "dest": "user",
+                    "help": "Username or UID",
+                },
+            ),
+            (
+                ("--workdir", "-w"),
+                {
+                    "default": None,
+                    "dest": "workdir",
+                    "help": "Working directory inside the container",
+                },
+            ),
+        ],
+    },
+    {
+        "name": "kill",
+        "help": "Kill containers",
+        "func": compose_kill,
+        "args": [
+            (
+                ("-s", "--signal"),
+                {
+                    "default": None,
+                    "dest": "signal",
+                    "help": "Signal to send (default: SIGKILL)",
+                },
+            ),
+        ],
+    },
+    {
+        "name": "run",
+        "help": "Run a one-off command in a new container",
+        "func": compose_run,
+        "args": [
+            ("service", {"help": "Service name"}),
+            ("command", {"nargs": "*", "help": "Command and arguments"}),
+            (
+                "--build",
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "help": "Build images before starting",
+                },
+            ),
+            (
+                ("-d", "--detach"),
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "dest": "detach",
+                    "help": "Run in background",
+                },
+            ),
+            (
+                "--entrypoint",
+                {
+                    "default": None,
+                    "help": "Override entrypoint",
+                },
+            ),
+            (
+                ("-e", "--env"),
+                {
+                    "action": "append",
+                    "default": None,
+                    "dest": "env",
+                    "help": "Set environment variables",
+                },
+            ),
+            (
+                "--label",
+                {
+                    "action": "append",
+                    "default": None,
+                    "help": "Add metadata to container",
+                },
+            ),
+            (
+                ("--name",),
+                {
+                    "default": None,
+                    "help": "Assign a name to the container",
+                },
+            ),
+            (
+                "--no-deps",
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "help": "Don't start linked services",
+                },
+            ),
+            (
+                ("-p", "--publish"),
+                {
+                    "action": "append",
+                    "default": None,
+                    "dest": "publish",
+                    "help": "Publish a port",
+                },
+            ),
+            (
+                ("-q", "--quiet"),
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "dest": "quiet",
+                    "help": "Suppress pull output",
+                },
+            ),
+            (
+                ("--rm",),
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "dest": "remove",
+                    "help": "Remove container after run",
+                },
+            ),
+            (
+                ("-u", "--user"),
+                {
+                    "default": None,
+                    "dest": "user",
+                    "help": "Run as this user",
+                },
+            ),
+            (
+                ("-v", "--volume"),
+                {
+                    "action": "append",
+                    "default": None,
+                    "dest": "volume",
+                    "help": "Bind mount a volume",
+                },
+            ),
+            (
+                ("-w", "--workdir"),
+                {
+                    "default": None,
+                    "dest": "workdir",
+                    "help": "Working directory inside the container",
                 },
             ),
         ],
@@ -307,9 +509,13 @@ COMMANDS = [
                 },
             ),
             (
-                "-t",
-                "--timeout",
-                {"type": int, "default": 0, "help": "Timeout in seconds"},
+                ("-t", "--timeout"),
+                {
+                    "type": int,
+                    "default": 0,
+                    "dest": "timeout",
+                    "help": "Timeout in seconds",
+                },
             ),
         ],
     },
@@ -332,9 +538,12 @@ COMMANDS = [
                 },
             ),
             (
-                "-m",
-                "--memory",
-                {"default": None, "help": "Memory limit for build container"},
+                ("-m", "--memory"),
+                {
+                    "default": None,
+                    "dest": "memory",
+                    "help": "Memory limit for build container",
+                },
             ),
             (
                 "--no-cache",
@@ -377,11 +586,11 @@ COMMANDS = [
                 },
             ),
             (
-                "-q",
-                "--quiet",
+                ("-q", "--quiet"),
                 {
                     "action": "store_true",
                     "default": False,
+                    "dest": "quiet",
                     "help": "Suppress build output",
                 },
             ),
@@ -442,9 +651,13 @@ COMMANDS = [
                 },
             ),
             (
-                "-q",
-                "--quiet",
-                {"action": "store_true", "default": False, "help": "Suppress output"},
+                ("-q", "--quiet"),
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "dest": "quiet",
+                    "help": "Suppress output",
+                },
             ),
         ],
     },
@@ -454,8 +667,7 @@ COMMANDS = [
         "func": compose_ps,
         "args": [
             (
-                "-a",
-                "--all",
+                ("-a", "--all"),
                 {
                     "action": "store_true",
                     "default": False,
@@ -506,9 +718,13 @@ COMMANDS = [
                 },
             ),
             (
-                "-q",
-                "--quiet",
-                {"action": "store_true", "default": False, "help": "Only display IDs"},
+                ("-q", "--quiet"),
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "dest": "quiet",
+                    "help": "Only display IDs",
+                },
             ),
             (
                 "--services",
@@ -538,9 +754,13 @@ COMMANDS = [
         "func": compose_logs,
         "args": [
             (
-                "-f",
-                "--follow",
-                {"action": "store_true", "default": False, "help": "Follow log output"},
+                ("-f", "--follow"),
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "dest": "follow",
+                    "help": "Follow log output",
+                },
             ),
             ("--index", {"type": int, "default": 0, "help": "Index of the container"}),
             (
@@ -572,9 +792,13 @@ COMMANDS = [
                 },
             ),
             (
-                "-t",
-                "--timestamps",
-                {"action": "store_true", "default": False, "help": "Show timestamps"},
+                ("-t", "--timestamps"),
+                {
+                    "action": "store_true",
+                    "default": False,
+                    "dest": "timestamps",
+                    "help": "Show timestamps",
+                },
             ),
             (
                 "--until",
@@ -586,6 +810,9 @@ COMMANDS = [
         "name": "top",
         "help": "Display running processes",
         "func": compose_top,
+        "args": [
+            ("services", {"nargs": "*", "help": "Services to display"}),
+        ],
     },
     {
         "name": "images",
@@ -602,11 +829,11 @@ COMMANDS = [
                 },
             ),
             (
-                "-q",
-                "--quiet",
+                ("-q", "--quiet"),
                 {
                     "action": "store_true",
                     "default": False,
+                    "dest": "quiet",
                     "help": "Only display image IDs",
                 },
             ),
@@ -617,6 +844,8 @@ COMMANDS = [
         "help": "Print the public port for a port binding",
         "func": compose_port,
         "args": [
+            ("service", {"help": "Service name"}),
+            ("private_port", {"type": int, "nargs": "?", "help": "Private port"}),
             (
                 "--protocol",
                 {
@@ -715,7 +944,10 @@ COMMANDS = [
                     "help": "Don't resolve file paths",
                 },
             ),
-            ("-o", "--output", {"default": None, "help": "Save to file"}),
+            (
+                ("-o", "--output"),
+                {"default": None, "dest": "output", "help": "Save to file"},
+            ),
             (
                 "--profiles",
                 {
@@ -725,11 +957,11 @@ COMMANDS = [
                 },
             ),
             (
-                "-q",
-                "--quiet",
+                ("-q", "--quiet"),
                 {
                     "action": "store_true",
                     "default": False,
+                    "dest": "quiet",
                     "help": "Only validate, don't print",
                 },
             ),
@@ -817,7 +1049,10 @@ COMMANDS = [
                     "help": "Don't normalize compose model",
                 },
             ),
-            ("-o", "--output", {"default": None, "help": "Save to file"}),
+            (
+                ("-o", "--output"),
+                {"default": None, "dest": "output", "help": "Save to file"},
+            ),
             (
                 "--profiles",
                 {
@@ -827,11 +1062,11 @@ COMMANDS = [
                 },
             ),
             (
-                "-q",
-                "--quiet",
+                ("-q", "--quiet"),
                 {
                     "action": "store_true",
                     "default": False,
+                    "dest": "quiet",
                     "help": "Only validate, don't print",
                 },
             ),
@@ -867,8 +1102,7 @@ COMMANDS = [
         "func": compose_version,
         "args": [
             (
-                "-f",
-                "--format",
+                ("-f", "--format"),
                 {
                     "choices": ["pretty", "json"],
                     "default": "pretty",

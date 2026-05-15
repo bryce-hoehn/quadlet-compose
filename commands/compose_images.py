@@ -5,8 +5,7 @@ import subprocess
 from typing import Literal
 
 from rich.console import Console
-from utils.compose import parse_compose, resolve_compose_path
-from utils.mapping import map_compose
+from utils.compose import get_service_info, parse_compose, resolve_compose_path
 
 
 def compose_images(
@@ -21,7 +20,7 @@ def compose_images(
     compose_path = resolve_compose_path(compose_file)
     compose = parse_compose(compose_path)
 
-    bundle = map_compose(compose, compose_path=compose_path)
+    info = get_service_info(compose, compose_path=compose_path)
 
-    label = f"io.quadlet-compose.project={bundle.project_name}"
+    label = f"io.quadlet-compose.project={info.project_name}"
     subprocess.run(["podman", "images", "--filter", f"label={label}"], check=True)

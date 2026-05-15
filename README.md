@@ -2,7 +2,7 @@
 
 A Python-native compose→quadlet compiler that acts as a drop-in replacement for `docker-compose` / `podman-compose`. It parses `compose.yaml` files using [ryaml](https://pypi.org/project/ryaml/) and auto-generated [Pydantic](https://docs.pydantic.dev/) models from the [compose-spec](https://github.com/compose-spec/compose-spec) JSON Schema, translates them into Podman Quadlet unit files via a declarative mapping layer, and manages the resulting systemd services via `systemctl`.
 
-**Disclaimer** - This is currently only a **PROOF OF CONCEPT**. It has not been used in production and I do not recommend doing so.
+> **Status:** Early alpha. Core compose→quadlet translation is functional. Most common commands are implemented. Not recommended for production use.
 
 ## Quick Start
 
@@ -13,6 +13,7 @@ pip install quadlet-compose
 ```
 
 See [Installation](https://github.com/bryce-hoehn/quadlet-compose/wiki/Installation) for more installation options.
+
 ## Usage
 
 ```
@@ -28,12 +29,13 @@ Options:
 
 Commands:
   up                   Create and start containers
-  down                 Stop and remove containers
-  restart              Restart service containers
-  start                Start services
-  stop                 Stop services
+  down                 Stop and remove containers, networks, images, and volumes
   build                Build or rebuild services
+  exec                 Execute a command in a running service container
+  kill                 Kill containers
   pull                 Pull service images
+  restart              Restart service containers
+  run                  Run a one-off command in a new container
   ps                   List containers
   logs                 View output from containers
   top                  Display running processes
@@ -43,6 +45,48 @@ Commands:
   convert              Preview quadlet files
   version              Show version information
 ```
+
+## Command Compatibility
+
+Comparison of `docker compose` commands against `quadlet-compose` support:
+
+| docker compose | Status | Notes |
+|----------------|--------|-------|
+| `attach` | ❌ | |
+| `build` | ✅ | Builds images via `podman build` from service build contexts |
+| `commit` | ❌ | |
+| `config` | ✅ | Validates and prints the compose configuration |
+| `convert` | ✅ | Previews generated quadlet files without writing to disk |
+| `cp` | ❌ | |
+| `create` | ❌ | |
+| `down` | ✅ | Stops systemd units, removes quadlet files, removes pod; supports `--rmi`, `--volumes` |
+| `events` | ❌ | |
+| `exec` | ✅ | Executes a command in a running container via `podman exec` |
+| `export` | ❌ | |
+| `images` | ✅ | Lists images via `podman images` filtered by project label |
+| `kill` | ✅ | Kills containers via `systemctl --user kill`; supports `--signal` |
+| `logs` | ✅ | Delegates to `podman logs`; supports `--follow`, `--since`, `--tail`, `--timestamps`, `--until` |
+| `ls` | ❌ | |
+| `pause` | ❌ | |
+| `port` | ✅ | Prints public port for a port binding via `podman port` |
+| `ps` | ✅ | Delegates to `podman ps`; supports `--all`, `--filter`, `--format`, `--services`, `--quiet`, `--status` |
+| `publish` | ❌ | |
+| `pull` | ✅ | Pulls service images via `podman pull`; supports `--quiet`, `--ignore-buildable`, `--ignore-pull-failures` |
+| `push` | ❌ | |
+| `restart` | ✅ | Delegates to `down` + `up` |
+| `rm` | ❌ | |
+| `run` | ✅ | Runs one-off commands via `podman run`; supports `-d`, `--entrypoint`, `-e`, `--name`, `-p`, `--rm`, `-u`, `-v`, `-w` |
+| `scale` | ❌ | |
+| `start` | ❌ | |
+| `stats` | ❌ | |
+| `stop` | ❌ | |
+| `top` | ✅ | Displays running processes via `podman top`; accepts optional service list |
+| `unpause` | ❌ | |
+| `up` | ✅ | Parses compose, generates quadlet files, starts systemd units |
+| `version` | ✅ | Supports `--format pretty\|json` and `--short` |
+| `volumes` | ❌ | |
+| `wait` | ❌ | |
+| `watch` | ❌ | |
 
 ## Requirements
 

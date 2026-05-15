@@ -43,7 +43,7 @@ def compose_down(
     timeout: int = 0,
     volumes: bool = False,
 ) -> None:
-    """Stop containers"""
+    """Stop containers."""
     console = Console()
     compose_path = resolve_compose_path(compose_file)
     compose = parse_compose(compose_path)
@@ -73,10 +73,48 @@ def compose_down(
         check=True,
     )
 
-    # Start all current services
+    # Stop all current services
     for svc in bundle.service_names():
-        console.print(f"starting {svc}")
+        console.print(f"stopping {svc}")
         subprocess.run(
             ["systemctl", "--user", "stop", svc],
             check=True,
         )
+
+    # Remove images if requested
+    if rmi is not None:
+        for unit in bundle.containers:
+            image = unit.Image
+            if not image:
+                continue
+            if rmi == "local" and ":" in image:
+                # Only remove images that don't have a tag (local builds)
+                continue
+            console.print(f"removing image {image}")
+            subprocess.run(
+                ["podman", "rmi", image],
+                check=False,
+            )
+
+    # Remove named volumes if requested
+    if volumes:
+        for unit in bundle.volumes:
+            vol_name = unit.VolumeName
+            if vol_name:
+                console.print(f"removing volume {vol_name}")
+                subprocess.run(
+                    ["podman", "volume", "rm", vol_name],
+                    check=False,
+                )
+
+    # Remove quadlet files
+    for filename in quadlet_files:
+        path = unit_dir / filename
+        if path.exists():
+            path.unlink()
+            console.print(f"removed {path}")
+
+    subprocess.run(
+        ["systemctl", "--user", "daemon-reload"],
+        check=True,
+    )

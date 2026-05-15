@@ -26,8 +26,11 @@ class TestCommandsList:
             "up",
             "down",
             "build",
+            "exec",
+            "kill",
             "pull",
             "restart",
+            "run",
             "ps",
             "logs",
             "top",
@@ -52,13 +55,13 @@ class TestCommandsList:
         down_cmd = next(c for c in COMMANDS if c["name"] == "down")
         assert "args" in down_cmd
 
-    def test_build_has_no_args(self):
+    def test_build_has_args(self):
         build_cmd = next(c for c in COMMANDS if c["name"] == "build")
-        assert "args" not in build_cmd
+        assert "args" in build_cmd
 
-    def test_version_has_no_args(self):
+    def test_version_has_args(self):
         version_cmd = next(c for c in COMMANDS if c["name"] == "version")
-        assert "args" not in version_cmd
+        assert "args" in version_cmd
 
     def test_command_names_are_unique(self):
         names = [cmd["name"] for cmd in COMMANDS]
@@ -339,6 +342,5 @@ class TestMainDispatch:
                 main()
                 call_kwargs = mock_func.call_args[1]
                 assert call_kwargs["compose_file"] is None
-                assert call_kwargs["kube"] is False
-                assert call_kwargs["detach"] is False
-                assert call_kwargs["remove_orphans"] is False
+                # With dynamic kwargs, only argparse-defined args are passed
+                assert len(call_kwargs) == 1  # only compose_file

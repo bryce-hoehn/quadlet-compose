@@ -106,10 +106,7 @@ def convert_stop_signal(value: Any) -> dict[str, Any]:
 
 
 def convert_stop_grace_period(value: Any) -> dict[str, Any]:
-    """Convert compose ``stop_grace_period`` to ``StopTimeout`` (seconds).
-
-    BUG FIX: Previous version multiplied by 1e9 (nanoseconds).
-    """
+    """Convert compose ``stop_grace_period`` to ``StopTimeout`` (seconds)."""
     if value is None:
         return {}
     return {"StopTimeout": str(_parse_duration_seconds(value))}

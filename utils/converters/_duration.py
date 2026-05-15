@@ -9,9 +9,6 @@ def _parse_duration_seconds(value: str | int | float) -> int:
     Supports:
     - Plain numbers (treated as seconds)
     - Go-style duration strings: ``1h30m10s``, ``90m``, ``3600s``
-
-    BUG FIX: Previous version multiplied by 1e9 (nanoseconds).
-    Now correctly treats plain numbers as seconds.
     """
     if isinstance(value, (int, float)):
         return int(value)
