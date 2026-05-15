@@ -4,9 +4,19 @@
 def compose_build(
     *,
     compose_file: str | None = None,
-    kube: bool = False,
-    detach: bool = False,
-    remove_orphans: bool = False,
+    build_arg: list[str] | None = None,
+    builder: str | None = None,
+    check: bool = False,
+    memory: str | None = None,
+    no_cache: bool = False,
+    print: bool = False,
+    provenance: bool = False,
+    pull: bool = False,
+    push: bool = False,
+    quiet: bool = False,
+    sbom: bool = False,
+    ssh: str | None = None,
+    with_dependencies: bool = False,
 ) -> None:
     """Build or rebuild services."""
     raise NotImplementedError("compose build")

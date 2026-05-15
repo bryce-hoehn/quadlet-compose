@@ -9,7 +9,7 @@ from rich.console import Console
 
 def compose_version(
     *,
-    _format: Literal("pretty", "json") = "pretty",
+    _format: Literal["pretty", "json"] = "pretty",
     short: bool = False,
 ) -> None:
     """Show version information."""

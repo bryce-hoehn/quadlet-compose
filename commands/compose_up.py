@@ -2,6 +2,7 @@
 
 import subprocess
 from pathlib import Path
+from typing import Literal
 
 from rich.console import Console
 
@@ -37,9 +38,35 @@ def _find_project_files(
 def compose_up(
     *,
     compose_file: str | None = None,
-    kube: bool = False,
     detach: bool = False,
     remove_orphans: bool = False,
+    build: bool = False,
+    no_build: bool = False,
+    quiet_build: bool = False,
+    pull: Literal["always", "missing", "never"] | None = None,
+    quiet_pull: bool = False,
+    force_recreate: bool = False,
+    no_recreate: bool = False,
+    always_recreate_deps: bool = False,
+    attach: list[str] | None = None,
+    attach_dependencies: bool = False,
+    no_attach: list[str] | None = None,
+    no_color: bool = False,
+    no_log_prefix: bool = False,
+    timestamps: bool = False,
+    abort_on_container_exit: bool = False,
+    abort_on_container_failure: bool = False,
+    exit_code_from: str | None = None,
+    scale: list[str] | None = None,
+    timeout: int | None = None,
+    renew_anon_volumes: bool = False,
+    wait: bool = False,
+    wait_timeout: int | None = None,
+    no_deps: bool = False,
+    no_start: bool = False,
+    menu: bool = False,
+    watch: bool = False,
+    yes: bool = False,
 ) -> None:
     """Create and start containers by writing quadlet files and starting systemd units."""
     console = Console()
