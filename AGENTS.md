@@ -7,9 +7,9 @@ A Python-native compose→quadlet compiler that acts as a drop-in replacement fo
 ```
 quadlet_compose.py        # CLI entry point (argparse + rich)
 ├── commands/         # One module per docker-compose command
-│   ├── up.py             #   map_compose() → write quadlet files → systemctl start
-│   ├── down.py           #   systemctl stop → rm quadlet files → podman pod rm
-│   └── ...               #   build, config, convert, images, logs, port, ps, pull, restart, top, version
+│   ├── compose_up.py     #   map_compose() → write quadlet files → systemctl start
+│   ├── compose_down.py   #   systemctl stop → rm quadlet files → podman pod rm
+│   └── ...               #   build, config, convert, exec, images, kill, logs, port, ps, pull, restart, run, top, version
 ├── models/
 │   ├── compose.py        #   Auto-generated Pydantic models from compose-spec.json (via datamodel-codegen)
 │   └── quadlet/          #   Pydantic models for Quadlet INI unit types
@@ -50,10 +50,30 @@ validated compose models
     ↓ map_compose() in utils/mapping.py
 QuadletBundle { pod, containers, networks, volumes, builds }
     ↓ .to_quadlet_files()
-{ "myapp-pod.pod": "[Pod]\n...", "web.container": "[Container]\n...", ... }
+{ "myapp.pod": "[Pod]\n...", "myapp-web.container": "[Container]\nImage=nginx:latest\n..." }
     ↓ write to ~/.config/containers/systemd/
 systemctl --user daemon-reload && systemctl --user start <units>
 ```
+
+### Mapping behaviors
+
+The compose→quadlet mapping layer applies several transformations beyond
+simple field renaming:
+
+- **Pod references**: `Pod=` in `.container` files uses the full Quadlet
+  filename (e.g., `Pod=myapp.pod`) so the Quadlet generator can resolve
+  the reference.
+- **Port migration**: `PublishPort` is moved from container units to the
+  pod unit, since Podman requires ports on the pod when containers share
+  its network namespace.
+- **Relative path resolution**: Volume source paths starting with `./` or
+  `../` are resolved against the compose file's parent directory before
+  writing quadlet files (Quadlet would otherwise resolve them against
+  `~/.config/containers/systemd/`).
+- **Label handling**: Compose `labels` (list or dict) are converted to
+  `Label=` lines. The auto-generated Pydantic models represent list-form
+  labels as `set[str]`, which converters handle alongside `list[str]` and
+  `dict`.
 
 ## Design Principles
 

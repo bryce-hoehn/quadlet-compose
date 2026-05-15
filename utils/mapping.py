@@ -356,17 +356,23 @@ def map_compose(
 
     bundle.project_name = project_name
 
-    # Create pod for the project.  Use the bare project name for the
-    # podman pod name (PodName) but the Quadlet service stem for Pod=
-    # references in containers.  Quadlet appends ``-pod`` to the file
-    # stem when generating the service name, so containers must use
-    # ``{project_name}-pod`` for Pod= to match.
-    # See: https://github.com/containers/podman/issues/24976
-    pod_service_name = f"{project_name}-pod"
+    # Create pod for the project.  The pod file is named
+    # ``{project_name}.pod`` and Quadlet's ``Pod=`` directive requires
+    # the **full Quadlet filename** (including the ``.pod`` extension)
+    # so that the generator can resolve the reference via
+    # ``unitsInfoMap``.  Quadlet appends ``-pod`` to the file stem
+    # when generating the systemd service name (e.g. ``jellyfin.pod``
+    # → ``jellyfin-pod.service``).
+    pod_service_name = f'{project_name}.pod'
     bundle.pod = PodUnit(
         PodName=project_name,
         ExitPolicy="stop",
     )
+
+    # Resolve the compose file's parent directory for relative path
+    # resolution.  Quadlet files live in ~/.config/containers/systemd/,
+    # so relative paths must be made absolute before writing them.
+    compose_dir = compose_path.parent if compose_path else Path.cwd()
 
     # Map services
     if spec.services:
@@ -392,6 +398,31 @@ def map_compose(
                 project_name=project_name,
                 pod_name=pod_service_name,
             )
+
+            # Resolve relative volume paths against the compose file
+            # directory.  Quadlet resolves relative paths against the
+            # unit file location (~/.config/containers/systemd/), which
+            # is almost never what the user intends.
+            if container.Volume:
+                resolved: list[str] = []
+                for vol in container.Volume:
+                    parts = vol.split(':', 2)
+                    source = parts[0]
+                    if source.startswith('./') or source.startswith('../'):
+                        source = str((compose_dir / source).resolve())
+                        parts[0] = source
+                    resolved.append(':'.join(parts))
+                container.Volume = resolved
+
+            # Podman requires PublishPort on the *pod*, not individual
+            # containers, when containers share a pod's network
+            # namespace.  Migrate ports from the container to the pod.
+            if container.PublishPort and bundle.pod is not None:
+                if bundle.pod.PublishPort is None:
+                    bundle.pod.PublishPort = []
+                bundle.pod.PublishPort.extend(container.PublishPort)
+                container.PublishPort = None
+
             bundle.containers.append(container)
 
             # Track restart policy for compose_up to handle.

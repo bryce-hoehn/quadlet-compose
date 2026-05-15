@@ -106,7 +106,7 @@ How compose service fields map to Quadlet `.container` keys.
 | `command` | `Exec` | |
 | `environment` | `Environment` | List or dict → `KEY=VALUE` lines |
 | `env_file` | `EnvironmentFile` | |
-| `ports` | `PublishPort` | Short/long syntax → `HOST:PORT[/PROTO]` |
+| `ports` | `PublishPort` (on pod) | Short/long syntax → `HOST:PORT[/PROTO]`; migrated to the pod unit since Podman requires ports on pods |
 | `expose` | `ExposeHostPort` | |
 | `labels` | `Label` | List or dict → `KEY=VALUE` lines |
 | `annotations` | `Annotation` | |
@@ -136,7 +136,7 @@ How compose service fields map to Quadlet `.container` keys.
 | `stop_signal` | `StopSignal` | |
 | `stop_grace_period` | `StopTimeout` | Duration string → seconds |
 | `cgroup` | `CgroupsMode` | `private`/`host` → Quadlet values |
-| `volumes` | `Volume`, `Tmpfs` | 1:N expansion; bind mounts, named volumes, tmpfs |
+| `volumes` | `Volume`, `Tmpfs` | 1:N expansion; bind mounts, named volumes, tmpfs; relative paths resolved against compose file directory |
 
 #### ⚠️ Handled differently
 

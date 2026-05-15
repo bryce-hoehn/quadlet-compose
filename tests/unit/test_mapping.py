@@ -506,7 +506,7 @@ class TestMapCompose:
         assert bundle.pod.PodName == "test"
         assert len(bundle.containers) == 1
         assert bundle.containers[0].Image == "nginx:latest"
-        assert bundle.containers[0].Pod == "test-pod"
+        assert bundle.containers[0].Pod == "test.pod"
 
     def test_compose_with_name(self) -> None:
         data = {
