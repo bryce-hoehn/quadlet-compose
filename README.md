@@ -93,8 +93,8 @@ Comparison of `docker compose` commands against `quadlet-compose` support:
 `quadlet-compose` supports variable interpolation in compose files using `$VAR` and `${VAR}` syntax, resolved via `os.path.expandvars()` with `.env` file loading via `python-dotenv`.
 
 **Priority order** (highest to lowest):
-1. `.env` file (located alongside the compose file)
-2. CLI `--env KEY=VALUE` flags
+1. CLI `--env KEY=VALUE` flags
+2. `.env` file (located alongside the compose file)
 3. Shell environment variables (`os.environ`)
 
 **Supported syntax:**
