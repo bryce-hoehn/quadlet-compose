@@ -103,7 +103,7 @@ def compose_up(
             dest = tmp_dir / filename
             dest.write_text(content)
         subprocess.run(
-            ['podman', 'quadlet', 'install', '--replace', str(tmp_dir)],
+            ['podman', 'quadlet', 'install', '--replace', '--force', str(tmp_dir)],
             check=True,
         )
 
