@@ -6,13 +6,7 @@ from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 
 
-def compose_top(
-    *,
-    compose_file: str | None = None,
-    kube: bool = False,
-    detach: bool = False,
-    remove_orphans: bool = False,
-) -> None:
+def compose_top(*, compose_file: str | None = None) -> None:
     """Display running processes."""
 
     compose_path = resolve_compose_path(compose_file)
@@ -24,4 +18,4 @@ def compose_top(
         unit.ContainerName for unit in bundle.containers if unit.ContainerName
     ]
 
-    subprocess.run(["podman", "stats"] + containers)
+    subprocess.run(["podman", "stats"] + containers, check=True)
