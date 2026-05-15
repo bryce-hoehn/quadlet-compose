@@ -13,6 +13,7 @@
 
         pythonDeps = with pkgs.python312Packages; [
           pydantic
+          python-dotenv
           pyyaml
           rich
         ];
