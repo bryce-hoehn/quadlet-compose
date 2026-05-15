@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import ryaml
+import yaml
 from models.compose import ComposeSpecification
 
 # Compose file search order (matches podman-compose behavior)
@@ -41,12 +41,12 @@ def resolve_compose_path(compose_file: str | None) -> Path:
 
 
 def parse_compose(compose_path: Path) -> dict:
-    """Parse a compose file using ryaml and validate with Pydantic models.
+    """Parse a compose file using PyYAML and validate with Pydantic models.
 
     Returns the raw dict (validated) for use by the mapping layer.
     """
     with open(compose_path) as f:
-        data = ryaml.load(f)
+        data = yaml.safe_load(f)
 
     if data is None:
         raise ComposeError(f"Compose file is empty: {compose_path}")

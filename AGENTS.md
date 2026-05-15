@@ -1,6 +1,6 @@
 # quadlet-compose
 
-A Python-native compose→quadlet compiler that acts as a drop-in replacement for `docker-compose` / `podman-compose`. It parses `compose.yaml` files using [ryaml](https://pypi.org/project/ryaml/) and auto-generated [Pydantic](https://docs.pydantic.dev/) models from the [compose-spec](https://github.com/compose-spec/compose-spec) JSON Schema, translates them into Podman Quadlet unit files via a declarative mapping layer, and manages the resulting systemd services via `systemctl`.
+A Python-native compose→quadlet compiler that acts as a drop-in replacement for `docker-compose` / `podman-compose`. It parses `compose.yaml` files using [PyYAML](https://pypi.org/project/PyYAML/) and auto-generated [Pydantic](https://docs.pydantic.dev/) models from the [compose-spec](https://github.com/compose-spec/compose-spec) JSON Schema, translates them into Podman Quadlet unit files via a declarative mapping layer, and manages the resulting systemd services via `systemctl`.
 
 ## Architecture
 
@@ -20,7 +20,7 @@ quadlet_compose.py        # CLI entry point (argparse + rich)
 │       ├── build.py      #     BuildUnit → .build INI
 │       └── image.py      #     ImageUnit → .image INI
 ├── utils/
-│   ├── compose.py        #   Compose file parsing (ryaml + Pydantic validation)
+│   ├── compose.py        #   Compose file parsing (PyYAML + Pydantic validation)
 │   ├── mapping.py        #   Compose→Quadlet mapping orchestrator (QuadletBundle)
 │   ├── quadlet.py        #   ~/.config/containers/systemd path helpers
 │   ├── converters/       #   Converter functions for compose→quadlet type transformations
@@ -43,7 +43,7 @@ quadlet_compose.py        # CLI entry point (argparse + rich)
 
 ```
 compose.yaml
-    ↓ ryaml load()
+    ↓ yaml.safe_load()
 compose data dict
     ↓ ComposeSpecification.model_validate() (Pydantic)
 validated compose models
@@ -57,7 +57,7 @@ systemctl --user daemon-reload && systemctl --user start <units>
 
 ## Design Principles
 
-- **Own the translation, delegate the parsing and lifecycle.** Use ryaml for YAML parsing and Pydantic models (auto-generated from compose-spec JSON Schema) for validation. Use `systemctl` for service management. The compose→quadlet mapping is the core value of this project — it should be correct, complete, and well-tested.
+- **Own the translation, delegate the parsing and lifecycle.** Use PyYAML for YAML parsing and Pydantic models (auto-generated from compose-spec JSON Schema) for validation. Use `systemctl` for service management. The compose→quadlet mapping is the core value of this project — it should be correct, complete, and well-tested.
 - **Declarative mapping over imperative code.** Field maps (`SERVICE_FIELD_MAP`, `NETWORK_FIELD_MAP`, etc.) declare the compose→quadlet translation as data. Converter functions handle type transformations. This makes the mapping auditable, testable, and easy to extend.
 - **docker-compose parity only.** Do not implement features beyond what `docker-compose` provides. If docker-compose doesn't do it, quadlet-compose shouldn't either. New commands must map to an existing `docker-compose` subcommand.
 - **Prefer Nix tooling.** Use `nix develop` for local development, `nix flake check` for validation, and Nix store paths for CI dependencies. Avoid installing packages via `apt` when a Nix equivalent exists.

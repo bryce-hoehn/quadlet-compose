@@ -1,6 +1,6 @@
 # quadlet-compose
 
-A Python-native compose→quadlet compiler that acts as a drop-in replacement for `docker-compose` / `podman-compose`. It parses `compose.yaml` files using [ryaml](https://pypi.org/project/ryaml/) and auto-generated [Pydantic](https://docs.pydantic.dev/) models from the [compose-spec](https://github.com/compose-spec/compose-spec) JSON Schema, translates them into Podman Quadlet unit files via a declarative mapping layer, and manages the resulting systemd services via `systemctl`.
+A Python-native compose→quadlet compiler that acts as a drop-in replacement for `docker-compose` / `podman-compose`. It parses `compose.yaml` files using [PyYAML](https://pypi.org/project/PyYAML/) and auto-generated [Pydantic](https://docs.pydantic.dev/) models from the [compose-spec](https://github.com/compose-spec/compose-spec) JSON Schema, translates them into Podman Quadlet unit files via a declarative mapping layer, and manages the resulting systemd services via `systemctl`.
 
 > **Status:** Early alpha. Core compose→quadlet translation is functional. Most common commands are implemented. Not recommended for production use.
 
@@ -92,7 +92,7 @@ Comparison of `docker compose` commands against `quadlet-compose` support:
 
 - [podman](https://podman.io/) — container runtime
 - Python 3.10+
-- [ryaml](https://pypi.org/project/ryaml/) — YAML parsing
+- [PyYAML](https://pypi.org/project/PyYAML/) — YAML parsing
 - [pydantic](https://pypi.org/project/pydantic/) — compose-spec model validation
 - [rich](https://pypi.org/project/rich/) — terminal output
 

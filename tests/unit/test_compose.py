@@ -173,7 +173,7 @@ class TestParseCompose:
         assert data["services"]["app"]["build"]["context"] == "."
 
     def test_invalid_yaml_raises(self, tmp_path):
-        """Invalid YAML content should raise an error from ryaml or pydantic."""
+        """Invalid YAML content should raise an error from yaml or pydantic."""
         compose_file = tmp_path / "compose.yaml"
         compose_file.write_text("{{{{invalid yaml")
         with pytest.raises(Exception):
