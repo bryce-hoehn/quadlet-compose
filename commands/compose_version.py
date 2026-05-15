@@ -2,16 +2,25 @@
 
 from importlib.metadata import version
 
+from typing import Literal
+
 from rich.console import Console
 
 
 def compose_version(
     *,
-    compose_file: str | None = None,
-    kube: bool = False,
-    detach: bool = False,
-    remove_orphans: bool = False,
+    _format: Literal("pretty", "json") = "pretty",
+    short: bool = False,
 ) -> None:
     """Show version information."""
     console = Console()
-    console.print(f'quadlet-compose version {version("quadlet-compose")}')
+
+    if short:
+        console.print(version("quadlet-compose"))
+
+    elif _format == "json":
+        v = version("quadlet-compose")
+        console.print(f'{{"version": "v{v}"}}')
+
+    else:
+        console.print(f'Quadlet Compose version v{version("quadlet-compose")}')
