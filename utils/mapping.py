@@ -356,13 +356,15 @@ def map_compose(
 
     bundle.project_name = project_name
 
-    # Create pod for the project.  Use the bare project name so the
-    # quadlet file ``{project_name}.pod`` maps to the systemd service
-    # ``{project_name}-pod.service`` (Quadlet appends ``-pod`` to the
-    # stem for .pod units).
-    pod_name = project_name
+    # Create pod for the project.  Use the bare project name for the
+    # podman pod name (PodName) but the Quadlet service stem for Pod=
+    # references in containers.  Quadlet appends ``-pod`` to the file
+    # stem when generating the service name, so containers must use
+    # ``{project_name}-pod`` for Pod= to match.
+    # See: https://github.com/containers/podman/issues/24976
+    pod_service_name = f"{project_name}-pod"
     bundle.pod = PodUnit(
-        PodName=pod_name,
+        PodName=project_name,
         ExitPolicy="stop",
     )
 
@@ -388,7 +390,7 @@ def map_compose(
                 svc_model,
                 service_name=svc_name,
                 project_name=project_name,
-                pod_name=pod_name,
+                pod_name=pod_service_name,
             )
             bundle.containers.append(container)
 
