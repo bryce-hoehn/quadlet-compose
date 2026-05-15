@@ -1,7 +1,0 @@
-name: test-compose
-
-services:
-  web:
-    image: docker.io/library/nginx:alpine
-    ports:
-      - "58080:80"

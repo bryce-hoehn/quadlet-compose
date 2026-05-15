@@ -1,40 +1,73 @@
 # quadlet-compose
 
-A thin wrapper around [podlet](https://github.com/containers/podlet) that acts as a drop-in replacement for `docker-compose` / `podman-compose`. It translates `compose.yaml` files into Podman Quadlet units and manages them via `systemctl`.
+A Python-native compose→quadlet compiler that acts as a drop-in replacement for `docker-compose` / `podman-compose`. It parses `compose.yaml` files using [ryaml](https://pypi.org/project/ryaml/) and auto-generated [Pydantic](https://docs.pydantic.dev/) models from the [compose-spec](https://github.com/compose-spec/compose-spec) JSON Schema, translates them into Podman Quadlet unit files via a declarative mapping layer, and manages the resulting systemd services via `systemctl`.
 
 ## Architecture
 
 ```
 quadlet_compose.py        # CLI entry point (argparse + rich)
-├── compose_cmds/        # One module per docker-compose command
-│   ├── up.py            #   podlet compose → quadlet files → systemctl start
-│   ├── down.py          #   systemctl stop → rm quadlet files → podman pod rm
-│   └── ...              #   build, config, convert, images, logs, port, ps, pull, restart, top, version
-├── hacks/               # Optional compose.yaml transformations (disabled by default)
-│   ├── interpolate.py   #   $VAR substitution
-│   ├── name_inject.py   #   Inject project name into service names
-│   ├── normalize.py     #   Normalize compose keys
-│   ├── expand.py        #   Expand short-form syntax to long-form
-│   └── strip_extensions.py  # Remove unsupported compose extensions
-└── utils/
-    ├── compose.py       #   Compose file parsing & validation
-    ├── config.py        #   ~/.config/containers/systemd path helpers
-    ├── progress.py      #   Rich-based progress display
-    └── utils.py         #   run_cmd, ComposeError, DRY_RUN
+├── commands/         # One module per docker-compose command
+│   ├── up.py             #   map_compose() → write quadlet files → systemctl start
+│   ├── down.py           #   systemctl stop → rm quadlet files → podman pod rm
+│   └── ...               #   build, config, convert, images, logs, port, ps, pull, restart, top, version
+├── models/
+│   ├── compose.py        #   Auto-generated Pydantic models from compose-spec.json (via datamodel-codegen)
+│   └── quadlet/          #   Pydantic models for Quadlet INI unit types
+│       ├── container.py  #     ContainerUnit → .container INI
+│       ├── network.py    #     NetworkUnit → .network INI
+│       ├── volume.py     #     VolumeUnit → .volume INI
+│       ├── pod.py        #     PodUnit → .pod INI
+│       ├── build.py      #     BuildUnit → .build INI
+│       └── image.py      #     ImageUnit → .image INI
+├── utils/
+│   ├── compose.py        #   Compose file parsing (ryaml + Pydantic validation)
+│   ├── mapping.py        #   Compose→Quadlet mapping orchestrator (QuadletBundle)
+│   ├── quadlet.py        #   ~/.config/containers/systemd path helpers
+│   ├── converters/       #   Converter functions for compose→quadlet type transformations
+│   │   ├── service.py    #     Service field converters (ports, volumes, healthcheck, etc.)
+│   │   ├── build.py      #     Build field converters
+│   │   ├── network.py    #     Network field converters
+│   │   ├── volume.py     #     Volume field converters
+│   │   ├── _helpers.py   #     Shared converter utilities
+│   │   ├── _duration.py  #     Duration string parsing
+│   │   └── _list_or_dict.py  # List/dict normalization converters
+│   └── field_maps/       #   Declarative field mapping tables
+│       ├── service.py    #     SERVICE_FIELD_MAP
+│       ├── build.py      #     BUILD_FIELD_MAP
+│       ├── network.py    #     NETWORK_FIELD_MAP
+│       └── volume.py     #     VOLUME_FIELD_MAP
+└── compose-spec.json     #   Official compose-spec JSON Schema (upstream)
+```
+
+### Data pipeline
+
+```
+compose.yaml
+    ↓ ryaml load()
+compose data dict
+    ↓ ComposeSpecification.model_validate() (Pydantic)
+validated compose models
+    ↓ map_compose() in utils/mapping.py
+QuadletBundle { pod, containers, networks, volumes, builds }
+    ↓ .to_quadlet_files()
+{ "myapp-pod.pod": "[Pod]\n...", "web.container": "[Container]\n...", ... }
+    ↓ write to ~/.config/containers/systemd/
+systemctl --user daemon-reload && systemctl --user start <units>
 ```
 
 ## Design Principles
 
-- **Delegate, don't reimplement.** Hand off all heavy lifting to `podlet` (quadlet generation) and `systemd`/`systemctl` (service lifecycle). quadlet-compose is a glue layer, not a runtime.
+- **Own the translation, delegate the parsing and lifecycle.** Use ryaml for YAML parsing and Pydantic models (auto-generated from compose-spec JSON Schema) for validation. Use `systemctl` for service management. The compose→quadlet mapping is the core value of this project — it should be correct, complete, and well-tested.
+- **Declarative mapping over imperative code.** Field maps (`SERVICE_FIELD_MAP`, `NETWORK_FIELD_MAP`, etc.) declare the compose→quadlet translation as data. Converter functions handle type transformations. This makes the mapping auditable, testable, and easy to extend.
 - **docker-compose parity only.** Do not implement features beyond what `docker-compose` provides. If docker-compose doesn't do it, quadlet-compose shouldn't either. New commands must map to an existing `docker-compose` subcommand.
 - **Prefer Nix tooling.** Use `nix develop` for local development, `nix flake check` for validation, and Nix store paths for CI dependencies. Avoid installing packages via `apt` when a Nix equivalent exists.
-- **Keep the surface area small.** Each `compose_cmds/*.py` module should be a thin translation layer: parse compose config → call podlet → call systemctl. Business logic lives in podlet and systemd, not here.
+- **Keep the surface area small.** Each `commands/*.py` module should follow the pattern: parse compose → map to quadlet → write files → call systemctl. Business logic lives in the mapping layer and systemd, not in command modules.
 
 ## Code Style
 
 - Python 3.10+ (use `X | Y` union syntax, `match` is fine but not required)
 - Single quotes for strings, double quotes inside f-strings when needed
-- Use `from utils import run_cmd, ComposeError` for subprocess calls — never call `subprocess.run` directly in command modules
+- Use `from utils import ComposeError` for error handling — never call `subprocess.run` directly in command modules
 - Use `rich` for all terminal output; avoid bare `print()`
 - Keep modules under ~300 lines; split if they grow beyond that
 
@@ -42,37 +75,64 @@ quadlet_compose.py        # CLI entry point (argparse + rich)
 
 - Unit tests: `nix develop -c pytest -v -m "not integration"`
 - Integration tests: `nix develop -c pytest -v -m integration --timeout=120`
-- Integration tests require: podman, podlet, systemd user session, lingering enabled
+- Integration tests require: podman, systemd user session, lingering enabled
 - All new compose commands must have at least a unit test for argument parsing
-- All new hacks must have unit tests covering edge cases
+- All new converter functions must have unit tests covering edge cases
+- Mapping layer tests should verify round-trip: compose dict → `QuadletBundle` → quadlet INI strings
 
 ## Common Patterns
 
-### Running a subprocess
+### Mapping a compose service to a Quadlet container
 
 ```python
-from utils import run_cmd, ComposeError
+from utils.mapping import map_compose
 
-# Raises ComposeError on failure
-result = run_cmd(["podlet", "--unit-directory", str(unit_dir), "compose", "--pod", str(compose_path)], quiet=True)
+# Parse compose file and map to quadlet units
+bundle = map_compose(compose_data, project_name='myapp')
 
-# Capture output
-stdout = result.stdout
+# Get all quadlet file contents
+files = bundle.to_quadlet_files()
+# {"myapp-pod.pod": "[Pod]\n...", "web.container": "[Container]\nImage=nginx:latest\n..."}
+
+# Write to unit directory
+from utils import get_unit_directory
+unit_dir = get_unit_directory()
+for filename, content in files.items():
+    (unit_dir / filename).write_text(content)
 ```
+
+### Adding a new field mapping
+
+1. If it's a 1:1 rename (same type), add an entry to the relevant field map in `utils/field_maps/`:
+   ```python
+   ('compose_field', 'QuadletField', None),
+   ```
+2. If it needs type conversion, write a converter function in `utils/converters/` and reference it:
+   ```python
+   ('compose_field', 'QuadletField', convert_my_field),
+   ```
+3. Add unit tests in `tests/unit/test_mapping.py`
 
 ### Adding a new compose command
 
-1. Create `compose_cmds/<command>.py` with a `compose_<command>(compose_file, **kwargs)` function
-2. Import and register it in `compose_cmds/__init__.py`
+1. Create `commands/<command>.py` with a `compose_<command>(compose_file, **kwargs)` function
+2. Import and register it in `commands/__init__.py`
 3. Add the CLI entry in `quadlet_compose.py`
 4. Add unit tests in `tests/unit/`
 
-### Adding a new hack
+### Regenerating compose-spec models
 
-1. Create `hacks/<name>.py` with a function that transforms compose data
-2. Register it in `hacks/__init__.py`
-3. Add it to the `QUADLET_COMPOSE_HACKS` env var handling
-4. Add tests in `tests/unit/`
+The compose-spec Pydantic models in `models/compose.py` are auto-generated from `compose-spec.json`:
+
+```bash
+# Download latest schema
+curl -o compose-spec.json https://raw.githubusercontent.com/compose-spec/compose-go/refs/heads/main/schema/compose-spec.json
+
+# Regenerate models (reads [tool.datamodel-codegen] from pyproject.toml)
+datamodel-codegen
+```
+
+This is automated via the `regenerate-models.yml` GitHub Actions workflow.
 
 ## CI Notes
 
@@ -83,7 +143,7 @@ stdout = result.stdout
 
 ## Maintenance
 
-- **Update this file** when adding new commands, hacks, or changing architecture
+- **Update this file** when adding new commands, field mappings, or changing architecture
 - **Update `docs/`** when changing user-facing behavior — these sync to the GitHub Wiki via CI
 - **Update `flake.nix`** version when bumping `pyproject.toml` version — they must stay in sync
 - **Update `requirements.txt`** when adding or removing Python dependencies

@@ -1,5 +1,5 @@
 {
-  description = "A thin wrapper around podlet that acts as a drop-in for docker/podman-compose";
+  description = "A Python-native compose→quadlet compiler that acts as a drop-in for docker/podman-compose";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -12,18 +12,18 @@
         pkgs = nixpkgs.legacyPackages.${system};
 
         pythonDeps = with pkgs.python312Packages; [
+          pydantic
+          ryaml
           rich
-          ruamel-yaml
         ];
 
         runtimeDeps = with pkgs; [
-          podlet
           podman
         ];
 
         quadlet-compose = pkgs.python312Packages.buildPythonApplication {
           pname = "quadlet-compose";
-          version = "0.2.1";
+          version = "0.3.0";
           format = "pyproject";
 
           src = ./.;
@@ -46,9 +46,9 @@
           doCheck = false;
 
           meta = with pkgs.lib; {
-            description = "A thin wrapper around podlet that acts as a drop-in for docker/podman-compose";
+            description = "A Python-native compose→quadlet compiler that acts as a drop-in for docker/podman-compose";
             homepage = "https://github.com/bryce-hoehn/quadlet-compose";
-            license = licenses.mit;
+            license = licenses.asl20;
             platforms = platforms.linux;
           };
         };
@@ -65,7 +65,6 @@
             python312Packages.pip
             python312Packages.pytest
             python312Packages.pytest-timeout
-            podlet
             podman
           ] ++ pythonDeps;
 

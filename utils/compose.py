@@ -1,15 +1,12 @@
-"""Compose file parsing and resolution."""
+from __future__ import annotations
 
-import tempfile
+from dataclasses import dataclass, field
 from pathlib import Path
 
-from ruamel.yaml import YAML
+import ryaml
+from models.compose import ComposeSpecification
 
-from hacks import apply_text_hacks, apply_dict_hacks
-from .config import get_unit_directory
-from .utils import ComposeError
-
-# Compose file search order (matches podlet's behavior)
+# Compose file search order (matches podman-compose behavior)
 COMPOSE_FILE_NAMES = [
     "compose.yaml",
     "compose.yml",
@@ -20,138 +17,115 @@ COMPOSE_FILE_NAMES = [
 ]
 
 
+class ComposeError(Exception):
+    """Error raised for compose file issues."""
+
+
 def resolve_compose_path(compose_file: str | None) -> Path:
     """Resolve the compose file path.
 
-    If compose_file is None, searches the CWD following podlet's search order.
+    If compose_file is None, searches the CWD following standard search order.
     Raises FileNotFoundError if no compose file is found.
     """
     if compose_file:
         p = Path(compose_file)
         if not p.is_file():
-            raise ComposeError(f"Compose file not found: {p}")
+            raise FileNotFoundError(f"Compose file not found: {p}")
         return p
 
     for name in COMPOSE_FILE_NAMES:
         candidate = Path.cwd() / name
         if candidate.is_file():
             return candidate
-    raise ComposeError("No compose file found in current directory.")
-
-
-def prepare_compose(compose_path: Path) -> Path:
-    """Prepare a compose file for use with ``podlet compose``.
-
-    Reads the compose file, applies any enabled hacks (text-level then
-    dict-level), and writes the result to a temporary file.  All hacks
-    are **enabled by default**; set ``QUADLET_COMPOSE_HACKS=false`` to
-    disable them.
-
-    See the ``hacks/`` package for available hacks.
-
-    Note: ``build:`` is now handled natively by podlet v0.3.1+ which
-    generates ``.build`` Quadlet files.  No pre-build step is needed.
-    """
-    raw = compose_path.read_text(encoding="utf-8")
-
-    # Apply text-level hacks (e.g. variable interpolation)
-    raw = apply_text_hacks(raw, compose_path)
-
-    # Parse with ruamel.yaml for round-trip preservation
-    ryaml = YAML()
-    data = ryaml.load(raw)
-    if data is None:
-        data = {}
-
-    # Apply dict-level hacks (e.g. normalize, expand, name injection)
-    apply_dict_hacks(data, compose_path)
-
-    # Write to temp file
-    tmp = tempfile.NamedTemporaryFile(
-        mode="w",
-        suffix=compose_path.suffix,
-        prefix="quadlet-compose-",
-        delete=False,
-    )
-    ryaml.dump(data, tmp)
-    tmp.close()
-    return Path(tmp.name)
+    raise FileNotFoundError("No compose file found in current directory.")
 
 
 def parse_compose(compose_path: Path) -> dict:
-    """Parse a compose file and return the full data plus derived metadata.
+    """Parse a compose file using ryaml and validate with Pydantic models.
 
-    Returns a dict with:
-        - project: str — project name (from `name:` field or directory name)
-        - services: dict — full service configs
-        - volumes: dict — full volume configs
-        - networks: dict — full network configs
-        - service_names: list[str] — service name keys
-        - volume_names: list[str] — volume name keys
-        - network_names: list[str] — network name keys
+    Returns the raw dict (validated) for use by the mapping layer.
     """
-    ryaml = YAML()
-    with open(compose_path, encoding="utf-8") as f:
-        data = ryaml.load(f) or {}
+    with open(compose_path) as f:
+        data = ryaml.load(f)
 
-    project = data.get("name") or compose_path.parent.resolve().name
-    services = data.get("services") or {}
-    volumes = data.get("volumes") or {}
-    networks = data.get("networks") or {}
+    if data is None:
+        raise ComposeError(f"Compose file is empty: {compose_path}")
 
-    return {
-        "project": project,
-        "services": services,
-        "volumes": volumes,
-        "networks": networks,
-        "service_names": list(services.keys()),
-        "volume_names": list(volumes.keys()),
-        "network_names": list(networks.keys()),
-    }
+    # Validate against compose-spec Pydantic models
+    ComposeSpecification.model_validate(data)
+
+    return data
 
 
-def get_image_services(compose_data: dict) -> dict:
-    """Extract services with images from pre-parsed compose data."""
-    services = compose_data["services"]
-    return {
-        name: config["image"]
-        for name, config in services.items()
-        if isinstance(config, dict) and "image" in config
-    }
+def resolve_project_name(
+    compose_data: dict,
+    compose_path: Path | None = None,
+) -> str:
+    """Resolve the project name from compose data.
 
-
-def get_build_services(compose_data: dict) -> dict:
-    """Extract services with build contexts from pre-parsed compose data."""
-    services = compose_data["services"]
-    build_services = {}
-    for name, config in services.items():
-        if isinstance(config, dict) and "build" in config:
-            build_info = config["build"]
-            if isinstance(build_info, str):
-                build_services[name] = {"context": build_info}
-            elif isinstance(build_info, dict):
-                build_services[name] = build_info
-    return build_services
-
-
-def get_service_targets(compose_data: dict) -> list[str]:
-    """Determine systemd service targets based on existing quadlet files.
-
-    Checks for .pod or .kube files in the unit directory to determine mode:
-    - Pod mode: returns [f"{project}-pod"] if .pod file exists
-    - Kube mode: returns [project] if .kube file exists
-    - Plain mode: returns individual service names
-
-    Used by lifecycle commands (start, stop, restart) to target the
-    appropriate systemd service(s).
+    Uses ``name:`` from the compose file, falls back to the parent directory
+    name of *compose_path*, or ``"default"``.
     """
-    project = compose_data["project"]
-    unit_dir = get_unit_directory()
+    return compose_data.get("name") or (
+        compose_path.parent.name if compose_path else "default"
+    )
 
-    if (unit_dir / f"{project}.pod").exists():
-        return [f"{project}-pod"]
 
-    if (unit_dir / f"{project}.kube").exists():
-        return [project]
+@dataclass
+class ServiceInfo:
+    """Lightweight service metadata — avoids the full ``map_compose`` pipeline.
 
-    return compose_data["service_names"]
+    Attributes:
+        project_name: Resolved project name.
+        container_names: Mapping of ``service_name`` → ``container_name``
+            (project-prefixed unless explicitly set via ``container_name:``).
+        service_names: Ordered list of service keys from the compose file.
+        images: Mapping of ``service_name`` → image reference (``None`` if
+            the service uses ``build:`` without an explicit ``image:``).
+    """
+
+    project_name: str = ""
+    container_names: dict[str, str] = field(default_factory=dict)
+    service_names: list[str] = field(default_factory=list)
+    images: dict[str, str | None] = field(default_factory=dict)
+
+
+def get_service_info(
+    compose_data: dict,
+    compose_path: Path | None = None,
+) -> ServiceInfo:
+    """Extract lightweight service info from parsed compose data.
+
+    This is a cheaper alternative to ``map_compose()`` for commands that
+    only need the project name and container names (e.g. ``top``, ``logs``,
+    ``ps``, ``kill``, ``images``).  It skips the full field-map pipeline,
+    quadlet model construction, and label injection.
+    """
+    project_name = resolve_project_name(compose_data, compose_path)
+
+    services = compose_data.get("services") or {}
+    container_names: dict[str, str] = {}
+    images: dict[str, str | None] = {}
+
+    for svc_name, svc_config in services.items():
+        if svc_config is None:
+            svc_config = {}
+
+        # Container name: explicit container_name > project-prefixed > service name
+        explicit = svc_config.get("container_name")
+        if explicit:
+            container_names[svc_name] = explicit
+        else:
+            container_names[svc_name] = (
+                f"{project_name}-{svc_name}" if project_name else svc_name
+            )
+
+        # Image: explicit image or None (build-only)
+        images[svc_name] = svc_config.get("image")
+
+    return ServiceInfo(
+        project_name=project_name,
+        container_names=container_names,
+        service_names=list(services.keys()),
+        images=images,
+    )

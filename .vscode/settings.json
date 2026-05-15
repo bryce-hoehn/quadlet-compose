@@ -8,5 +8,6 @@
   "editor.defaultFormatter": "ms-python.black-formatter", 
   "containers.environment": {
     "DOCKER_HOST": "unix:///run/user/1000/podman/podman.sock"
-  }
+  },
+  "nixEnvSelector.suggestion": false
 }
