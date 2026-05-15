@@ -166,8 +166,8 @@ class TestInterpolatingYamlLoad:
             data = interpolating_yaml_load(compose)
         assert data['services']['web']['image'] == 'from_dotenv'
 
-    def test_dotenv_overrides_env_override(self, tmp_path: Path) -> None:
-        """The .env file takes top priority over CLI --env."""
+    def test_cli_overrides_dotenv(self, tmp_path: Path) -> None:
+        """CLI --env takes top priority over .env file."""
         compose = tmp_path / 'compose.yaml'
         compose.write_text('services:\n  web:\n    image: ${MY_IMAGE}\n')
         (tmp_path / '.env').write_text('MY_IMAGE=from_dotenv\n')
@@ -175,7 +175,7 @@ class TestInterpolatingYamlLoad:
             compose,
             env_override={'MY_IMAGE': 'from_cli'},
         )
-        assert data['services']['web']['image'] == 'from_dotenv'
+        assert data['services']['web']['image'] == 'from_cli'
 
     def test_multiple_vars_in_one_value(self, tmp_path: Path) -> None:
         compose = tmp_path / 'compose.yaml'

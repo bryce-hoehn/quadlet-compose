@@ -165,22 +165,22 @@ def _build_variable_map(
 
     Priority (highest to lowest):
 
-    1. ``.env`` file in the compose file's parent directory
-    2. *env_override* (explicit ``--env KEY=VAL`` from CLI)
+    1. *env_override* (explicit ``--env KEY=VAL`` from CLI)
+    2. ``.env`` file in the compose file's parent directory
     3. Existing ``os.environ`` values
     """
     # Start with os.environ (lowest priority)
     variables: dict[str, str] = dict(os.environ)
 
-    # CLI overrides override os.environ
-    if env_override:
-        variables.update(env_override)
-
-    # .env file takes top priority
+    # .env file overrides os.environ
     dotenv_path = compose_path.parent / '.env'
     if dotenv_path.is_file():
         values = dotenv_values(dotenv_path)
         variables.update({k: v for k, v in values.items() if v is not None})
+
+    # CLI --env overrides everything
+    if env_override:
+        variables.update(env_override)
 
     return variables
 
