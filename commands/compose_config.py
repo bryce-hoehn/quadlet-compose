@@ -36,7 +36,7 @@ def compose_config(
     compose_path = resolve_compose_path(compose_file)
 
     # Parse and validate — will raise on invalid compose
-    data = parse_compose(compose_path)
+    data = parse_compose(compose_path, no_interpolate=no_interpolate)
 
     # --services: list service names
     if services:

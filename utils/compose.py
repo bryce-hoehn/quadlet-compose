@@ -5,6 +5,7 @@ from pathlib import Path
 
 import yaml
 from models.compose import ComposeSpecification
+from utils.interpolation import interpolating_yaml_load
 
 # Compose file search order (matches podman-compose behavior)
 COMPOSE_FILE_NAMES = [
@@ -40,13 +41,38 @@ def resolve_compose_path(compose_file: str | None) -> Path:
     raise FileNotFoundError("No compose file found in current directory.")
 
 
-def parse_compose(compose_path: Path) -> dict:
+def parse_compose(
+    compose_path: Path,
+    *,
+    no_interpolate: bool = False,
+    env_override: dict[str, str] | None = None,
+) -> dict:
     """Parse a compose file using PyYAML and validate with Pydantic models.
 
-    Returns the raw dict (validated) for use by the mapping layer.
+    When *no_interpolate* is ``False`` (the default), variable
+    interpolation is performed during YAML loading using
+    :func:`os.path.expandvars`.  Single-quoted scalars are not
+    interpolated, matching the compose-spec.
+
+    Parameters
+    ----------
+    compose_path:
+        Path to the compose file.
+    no_interpolate:
+        If ``True``, skip ``$VAR`` / ``${VAR}`` interpolation.
+    env_override:
+        Explicit ``KEY=VALUE`` pairs from ``--env`` CLI flags.
+
+    Returns
+    -------
+    dict
+        The raw dict (validated) for use by the mapping layer.
     """
-    with open(compose_path) as f:
-        data = yaml.safe_load(f)
+    if no_interpolate:
+        with open(compose_path) as f:
+            data = yaml.safe_load(f)
+    else:
+        data = interpolating_yaml_load(compose_path, env_override=env_override)
 
     if data is None:
         raise ComposeError(f"Compose file is empty: {compose_path}")

@@ -28,7 +28,7 @@ def compose_convert(
     """Preview the generated quadlet files."""
     console = Console()
     compose_path = resolve_compose_path(compose_file)
-    compose = parse_compose(compose_path)
+    compose = parse_compose(compose_path, no_interpolate=no_interpolate)
 
     bundle = map_compose(compose, compose_path=compose_path)
     quadlet_files = bundle.to_quadlet_files()

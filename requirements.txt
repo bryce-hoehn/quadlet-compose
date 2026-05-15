@@ -12,6 +12,8 @@ pydantic-core==2.46.4
     # via pydantic
 pygments==2.20.0
     # via rich
+python-dotenv==1.2.2
+    # via quadlet-compose (pyproject.toml)
 pyyaml==6.0.3
     # via quadlet-compose (pyproject.toml)
 rich==15.0.0
