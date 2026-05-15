@@ -8,13 +8,104 @@ import pytest
 
 from utils.compose import ComposeError, parse_compose
 from utils.interpolation import (
-    InterpolationError,
+    InvalidInterpolation,
+    TemplateWithDefaults,
+    UnsetRequiredSubstitution,
     interpolating_yaml_load,
 )
 
 
 # ---------------------------------------------------------------------------
-# interpolating_yaml_load — $VAR and ${VAR} resolution
+# TemplateWithDefaults — unit tests for the template engine
+# ---------------------------------------------------------------------------
+
+class TestTemplateWithDefaults:
+    """Tests for the TemplateWithDefaults string.Template subclass."""
+
+    def test_plain_var(self) -> None:
+        result = TemplateWithDefaults('$NAME').substitute({'NAME': 'alice'})
+        assert result == 'alice'
+
+    def test_braced_var(self) -> None:
+        result = TemplateWithDefaults('${NAME}').substitute({'NAME': 'alice'})
+        assert result == 'alice'
+
+    def test_undefined_var_returns_empty(self) -> None:
+        result = TemplateWithDefaults('$UNDEF').substitute({})
+        assert result == ''
+
+    def test_undefined_braced_returns_empty(self) -> None:
+        result = TemplateWithDefaults('${UNDEF}').substitute({})
+        assert result == ''
+
+    def test_dollar_dollar_escaped(self) -> None:
+        result = TemplateWithDefaults('price is $$5').substitute({})
+        assert result == 'price is $5'
+
+    def test_dollar_dollar_before_var(self) -> None:
+        result = TemplateWithDefaults('$$${NAME}').substitute({'NAME': 'alice'})
+        assert result == '$alice'
+
+    # -- Default value modifiers --
+
+    def test_default_if_unset_or_empty(self) -> None:
+        """${VAR:-default} → default if unset or empty."""
+        assert TemplateWithDefaults('${VAR:-fallback}').substitute({}) == 'fallback'
+        assert TemplateWithDefaults('${VAR:-fallback}').substitute({'VAR': ''}) == 'fallback'
+        assert TemplateWithDefaults('${VAR:-fallback}').substitute({'VAR': 'set'}) == 'set'
+
+    def test_default_if_unset(self) -> None:
+        """${VAR-default} → default if unset (empty is kept)."""
+        assert TemplateWithDefaults('${VAR-fallback}').substitute({}) == 'fallback'
+        assert TemplateWithDefaults('${VAR-fallback}').substitute({'VAR': ''}) == ''
+        assert TemplateWithDefaults('${VAR-fallback}').substitute({'VAR': 'set'}) == 'set'
+
+    # -- Required value modifiers --
+
+    def test_required_if_unset_or_empty(self) -> None:
+        """${VAR:?error} → error if unset or empty."""
+        with pytest.raises(UnsetRequiredSubstitution):
+            TemplateWithDefaults('${VAR:?missing}').substitute({})
+        with pytest.raises(UnsetRequiredSubstitution):
+            TemplateWithDefaults('${VAR:?missing}').substitute({'VAR': ''})
+        assert TemplateWithDefaults('${VAR:?missing}').substitute({'VAR': 'ok'}) == 'ok'
+
+    def test_required_if_unset(self) -> None:
+        """${VAR?error} → error if unset (empty is ok)."""
+        with pytest.raises(UnsetRequiredSubstitution):
+            TemplateWithDefaults('${VAR?missing}').substitute({})
+        assert TemplateWithDefaults('${VAR?missing}').substitute({'VAR': ''}) == ''
+        assert TemplateWithDefaults('${VAR?missing}').substitute({'VAR': 'ok'}) == 'ok'
+
+    # -- Alternative value modifiers --
+
+    def test_alternative_if_set_and_nonempty(self) -> None:
+        """${VAR:+replacement} → replacement if set and non-empty."""
+        assert TemplateWithDefaults('${VAR:+yes}').substitute({}) == ''
+        assert TemplateWithDefaults('${VAR:+yes}').substitute({'VAR': ''}) == ''
+        assert TemplateWithDefaults('${VAR:+yes}').substitute({'VAR': 'set'}) == 'yes'
+
+    def test_alternative_if_set(self) -> None:
+        """${VAR+replacement} → replacement if set (even if empty)."""
+        assert TemplateWithDefaults('${VAR+yes}').substitute({}) == ''
+        assert TemplateWithDefaults('${VAR+yes}').substitute({'VAR': ''}) == 'yes'
+        assert TemplateWithDefaults('${VAR+yes}').substitute({'VAR': 'set'}) == 'yes'
+
+    # -- Multiple vars in one string --
+
+    def test_multiple_vars(self) -> None:
+        result = TemplateWithDefaults('${A}/${B}:${C}').substitute(
+            {'A': 'repo', 'B': 'app', 'C': 'v1'},
+        )
+        assert result == 'repo/app:v1'
+
+    def test_mixed_syntax(self) -> None:
+        result = TemplateWithDefaults('$A-${B:-default}-$$').substitute({'A': 'hello'})
+        assert result == 'hello-default-$'
+
+
+# ---------------------------------------------------------------------------
+# interpolating_yaml_load — integration tests
 # ---------------------------------------------------------------------------
 
 class TestInterpolatingYamlLoad:
@@ -41,13 +132,12 @@ class TestInterpolatingYamlLoad:
             data = interpolating_yaml_load(compose)
         assert data['services']['web']['image'] == 'nginx:latest'
 
-    def test_undefined_var_left_as_literal(self, tmp_path: Path) -> None:
+    def test_undefined_var_becomes_empty(self, tmp_path: Path) -> None:
         compose = tmp_path / 'compose.yaml'
         compose.write_text('services:\n  web:\n    image: $UNDEFINED_VAR_XYZ\n')
         os.environ.pop('UNDEFINED_VAR_XYZ', None)
         data = interpolating_yaml_load(compose)
-        # os.path.expandvars leaves $UNDEFINED as-is when not set
-        assert data['services']['web']['image'] == '$UNDEFINED_VAR_XYZ'
+        assert data['services']['web']['image'] == ''
 
     def test_env_override(self, tmp_path: Path) -> None:
         compose = tmp_path / 'compose.yaml'
@@ -98,6 +188,30 @@ class TestInterpolatingYamlLoad:
         ):
             data = interpolating_yaml_load(compose)
         assert data['services']['web']['image'] == 'myrepo/myapp:v1'
+
+    def test_dollar_dollar_escaped(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        compose.write_text('services:\n  web:\n    image: "my$$image"\n')
+        data = interpolating_yaml_load(compose)
+        assert data['services']['web']['image'] == 'my$image'
+
+    def test_default_modifier(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        compose.write_text(
+            'services:\n  web:\n    image: "${MY_IMAGE:-nginx:latest}"\n'
+        )
+        os.environ.pop('MY_IMAGE', None)
+        data = interpolating_yaml_load(compose)
+        assert data['services']['web']['image'] == 'nginx:latest'
+
+    def test_required_modifier_raises(self, tmp_path: Path) -> None:
+        compose = tmp_path / 'compose.yaml'
+        compose.write_text(
+            'services:\n  web:\n    image: "${MY_IMAGE:?image required}"\n'
+        )
+        os.environ.pop('MY_IMAGE', None)
+        with pytest.raises(UnsetRequiredSubstitution):
+            interpolating_yaml_load(compose)
 
     def test_empty_compose_raises(self, tmp_path: Path) -> None:
         compose = tmp_path / 'compose.yaml'
