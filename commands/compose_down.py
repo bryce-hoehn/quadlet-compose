@@ -73,6 +73,14 @@ def compose_down(
         check=True,
     )
 
+    # Disable any services that were enabled by restart policies
+    for svc in bundle.restart_policies:
+        console.print(f"disabling {svc}")
+        subprocess.run(
+            ["systemctl", "--user", "disable", svc],
+            check=False,
+        )
+
     # Stop all current services
     for svc in bundle.service_names():
         console.print(f"stopping {svc}")

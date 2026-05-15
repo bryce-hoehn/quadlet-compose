@@ -240,6 +240,8 @@ class QuadletBundle:
     networks: list[NetworkUnit] = field(default_factory=list)
     volumes: list[VolumeUnit] = field(default_factory=list)
     builds: list[BuildUnit] = field(default_factory=list)
+    #: Maps container systemd service name → compose ``restart`` value.
+    restart_policies: dict[str, str] = field(default_factory=dict)
 
     def _tag(self, project_name: str) -> None:
         """Inject project-ownership labels into all units.
@@ -378,6 +380,15 @@ def map_compose(
                 pod_name=pod_name,
             )
             bundle.containers.append(container)
+
+            # Track restart policy for compose_up to handle
+            if svc_model.restart:
+                svc_name_systemd = (
+                    container.ContainerName or f"{project_name}-{svc_name}"
+                )
+                bundle.restart_policies[f"{svc_name_systemd}-container.service"] = (
+                    svc_model.restart
+                )
 
     # Map networks
     if spec.networks:
