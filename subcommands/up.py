@@ -1,5 +1,6 @@
 """compose up command — create and start containers via quadlet."""
 
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -7,7 +8,7 @@ from rich.console import Console
 
 from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
-from utils.mapping import map_compose
+from utils.mapping import QuadletBundle, map_compose
 from utils.progress import track_operation
 from utils.quadlet import get_unit_directory, run_quadlet_generator
 
@@ -249,6 +250,17 @@ QUADLET_EXTENSIONS = frozenset(
 PROJECT_LABEL_PREFIX = "io.quadlet-compose.project="
 
 
+def _create_bind_mount_dirs(bundle: QuadletBundle) -> None:
+    """Precreate host directories for bind-mount volumes."""
+    for container in bundle.containers:
+        if not container.Volume:
+            continue
+        for vol in container.Volume:
+            host_path = vol.split(":", 2)[0]
+            if host_path.startswith("/"):
+                os.makedirs(host_path, exist_ok=True)
+
+
 def _find_project_files(
     unit_dir: Path,
     project_name: str,
@@ -307,6 +319,7 @@ def compose_up(
     compose = parse_compose(compose_path)
 
     bundle = map_compose(compose, compose_path=compose_path)
+    _create_bind_mount_dirs(bundle)
     quadlet_files = bundle.to_quadlet_files()
 
     unit_dir = get_unit_directory()
