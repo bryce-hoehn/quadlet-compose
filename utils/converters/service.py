@@ -174,7 +174,7 @@ def _is_bind_mount_source(source: str) -> bool:
     docker-compose v1 VolumeSpec rules: a source starting with ``.``, ``/``,
     or ``~`` is a bind mount; otherwise it is a named volume.
     """
-    return source.startswith('.') or source.startswith('/') or source.startswith('~')
+    return source.startswith(".") or source.startswith("/") or source.startswith("~")
 
 
 def _volume_entry_to_dict(entry: Any) -> dict[str, Any]:
@@ -192,17 +192,20 @@ def _volume_entry_to_dict(entry: Any) -> dict[str, Any]:
 
 
 def convert_volumes(value: Any) -> dict[str, Any]:
-    """Convert compose ``volumes`` to ``Volume`` / ``Bind`` / ``Tmpfs`` lines.
+    """Convert compose ``volumes`` to ``Volume`` / ``Tmpfs`` lines.
 
+    Quadlet uses a single ``Volume=`` key for both bind mounts and named
+    volumes (``[[SOURCE-VOLUME|HOST-DIR:]CONTAINER-DIR[:OPTIONS]]``).
     Short-form strings are classified using docker-compose v1 VolumeSpec rules:
 
-    * Source starting with ``.``, ``/``, or ``~`` → bind mount (``Bind``)
-    * Otherwise → named volume (``Volume``)
+    * Source starting with ``.``, ``/``, or ``~`` → bind mount
+    * Otherwise → named volume
+
+    Both are emitted as ``Volume=`` lines.
     """
     if value is None:
         return {}
     volumes: list[str] = []
-    binds: list[str] = []
     tmpfs_list: list[str] = []
     entries = [value] if isinstance(value, str) else value
     for entry in entries:
@@ -220,24 +223,17 @@ def convert_volumes(value: Any) -> dict[str, Any]:
                 bind_str = f"{source}:{target}"
                 if opts:
                     bind_str += ":" + ",".join(opts)
-                binds.append(bind_str)
+                volumes.append(bind_str)
             elif vtype == "tmpfs":
                 tmpfs_list.append(target)
         else:
             # Short-form string: classify as bind mount or named volume
             # based on the source path per docker-compose v1 VolumeSpec rules.
-            vol_str = str(entry)
-            parts = vol_str.split(':')
-            source = parts[0]
-            if _is_bind_mount_source(source):
-                binds.append(vol_str)
-            else:
-                volumes.append(vol_str)
+            # Both are emitted as Volume= in Quadlet.
+            volumes.append(str(entry))
     result: dict[str, Any] = {}
     if volumes:
         result["Volume"] = volumes
-    if binds:
-        result["Bind"] = binds
     if tmpfs_list:
         result["Tmpfs"] = tmpfs_list
     return result
@@ -352,7 +348,11 @@ def convert_healthcheck(value: Any) -> dict[str, Any]:
             if isinstance(test, list):
                 # Remove the CMD/CMD-SHELL prefix if present
                 if test and test[0] in ("CMD", "CMD-SHELL"):
-                    cmd = " ".join(shlex.quote(arg) for arg in test[1:]) if len(test) > 1 else ""
+                    cmd = (
+                        " ".join(shlex.quote(arg) for arg in test[1:])
+                        if len(test) > 1
+                        else ""
+                    )
                 else:
                     cmd = " ".join(shlex.quote(arg) for arg in test)
                 result["HealthCmd"] = cmd
@@ -416,28 +416,28 @@ def convert_networks(value: Any) -> dict[str, Any]:
             if isinstance(net_config, BaseModel):
                 net_config = net_config.model_dump(exclude_none=True)
             if isinstance(net_config, dict):
-                net_aliases = net_config.get('aliases')
+                net_aliases = net_config.get("aliases")
                 if net_aliases:
                     aliases.extend(str(a) for a in net_aliases)
-                ipv4 = net_config.get('ipv4_address')
+                ipv4 = net_config.get("ipv4_address")
                 if ipv4:
                     ip = str(ipv4)
-                ipv6 = net_config.get('ipv6_address')
+                ipv6 = net_config.get("ipv6_address")
                 if ipv6:
                     ip6 = str(ipv6)
-                mac_addr = net_config.get('mac_address')
+                mac_addr = net_config.get("mac_address")
                 if mac_addr:
-                    podman_args.append(f'--mac-address={mac_addr}')
+                    podman_args.append(f"--mac-address={mac_addr}")
 
     result: dict[str, Any] = {}
     if networks:
-        result['Network'] = networks
+        result["Network"] = networks
     if aliases:
-        result['NetworkAlias'] = aliases
+        result["NetworkAlias"] = aliases
     if ip:
-        result['IP'] = ip
+        result["IP"] = ip
     if ip6:
-        result['IP6'] = ip6
+        result["IP6"] = ip6
     if podman_args:
-        result['PodmanArgs'] = podman_args
+        result["PodmanArgs"] = podman_args
     return result

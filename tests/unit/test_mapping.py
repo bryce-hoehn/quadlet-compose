@@ -213,8 +213,8 @@ class TestMapService:
             }
         )
         unit = map_service(svc, service_name="web")
-        assert unit.Bind is not None
-        assert unit.Bind == ["/host:/container"]
+        assert unit.Volume is not None
+        assert unit.Volume == ["/host:/container"]
 
     def test_service_with_named_volume(self) -> None:
         svc = Service.model_validate(
@@ -728,9 +728,9 @@ class TestMapCompose:
         assert bundle.pod is not None
         pod_ports = bundle.pod.PublishPort
         assert pod_ports is not None
-        assert pod_ports.count("8080:80") == 1, (
-            f'Expected exactly one "8080:80", got {pod_ports}'
-        )
+        assert (
+            pod_ports.count("8080:80") == 1
+        ), f'Expected exactly one "8080:80", got {pod_ports}'
         assert "9090:90" in pod_ports
         # Container units should have PublishPort cleared
         for c in bundle.containers:
@@ -749,11 +749,11 @@ class TestMapCompose:
         compose_path = Path("/home/user/myproject/docker-compose.yml")
         bundle = map_compose(data, project_name="test", compose_path=compose_path)
         container = bundle.containers[0]
-        assert container.Bind is not None
-        assert len(container.Bind) == 2
+        assert container.Volume is not None
+        assert len(container.Volume) == 2
         # Use sets for comparison because compose-spec volumes are stored
         # as a set (unordered).
-        assert set(container.Bind) == {
+        assert set(container.Volume) == {
             "/home/user/myproject/data:/app/data",
             "/home/user/config:/etc/app",
         }
@@ -771,8 +771,8 @@ class TestMapCompose:
         compose_path = Path("/home/user/myproject/docker-compose.yml")
         bundle = map_compose(data, project_name="test", compose_path=compose_path)
         container = bundle.containers[0]
-        assert container.Bind is not None
-        assert container.Bind == ["/host/path:/container/path"]
+        assert container.Volume is not None
+        assert container.Volume == ["/host/path:/container/path"]
 
     def test_named_volume_not_resolved(self) -> None:
         """Named volumes should not have path resolution applied."""
@@ -787,6 +787,5 @@ class TestMapCompose:
         compose_path = Path("/home/user/myproject/docker-compose.yml")
         bundle = map_compose(data, project_name="test", compose_path=compose_path)
         container = bundle.containers[0]
-        assert container.Bind is None
         assert container.Volume is not None
         assert container.Volume == ["myvolume:/data"]

@@ -295,7 +295,7 @@ class TestConvertVolumes:
                 {"type": "bind", "source": "/host/path", "target": "/container/path"},
             ]
         )
-        assert result == {"Bind": ["/host/path:/container/path"]}
+        assert result == {"Volume": ["/host/path:/container/path"]}
 
     def test_bind_mount_read_only(self) -> None:
         result = convert_volumes(
@@ -308,7 +308,7 @@ class TestConvertVolumes:
                 },
             ]
         )
-        assert result == {"Bind": ["/host/path:/container/path:ro"]}
+        assert result == {"Volume": ["/host/path:/container/path:ro"]}
 
     def test_named_volume(self) -> None:
         result = convert_volumes(
@@ -339,34 +339,34 @@ class TestConvertVolumes:
         assert result == {"Volume": ["data:/data"]}
 
     def test_short_form_bind_mount_relative_dot(self) -> None:
-        """``./data:/app/data`` → bind mount (source starts with ``.``)."""
+        """``./data:/app/data`` → Volume (source starts with ``.``)."""
         result = convert_volumes(["./data:/app/data"])
-        assert result == {"Bind": ["./data:/app/data"]}
+        assert result == {"Volume": ["./data:/app/data"]}
 
     def test_short_form_bind_mount_relative_dotdot(self) -> None:
-        """``../data:/app/data`` → bind mount (source starts with ``.``)."""
+        """``../data:/app/data`` → Volume (source starts with ``.``)."""
         result = convert_volumes(["../data:/app/data"])
-        assert result == {"Bind": ["../data:/app/data"]}
+        assert result == {"Volume": ["../data:/app/data"]}
 
     def test_short_form_bind_mount_absolute(self) -> None:
-        """``/host/path:/container/path`` → bind mount (source starts with ``/``)."""
+        """``/host/path:/container/path`` → Volume (source starts with ``/``)."""
         result = convert_volumes(["/host/path:/container/path"])
-        assert result == {"Bind": ["/host/path:/container/path"]}
+        assert result == {"Volume": ["/host/path:/container/path"]}
 
     def test_short_form_bind_mount_home(self) -> None:
-        """``~/data:/app/data`` → bind mount (source starts with ``~``)."""
+        """``~/data:/app/data`` → Volume (source starts with ``~``)."""
         result = convert_volumes(["~/data:/app/data"])
-        assert result == {"Bind": ["~/data:/app/data"]}
+        assert result == {"Volume": ["~/data:/app/data"]}
 
     def test_short_form_bind_mount_with_ro(self) -> None:
-        """``/host/path:/container/path:ro`` → bind mount with mode."""
+        """``/host/path:/container/path:ro`` → Volume with mode."""
         result = convert_volumes(["/host/path:/container/path:ro"])
-        assert result == {"Bind": ["/host/path:/container/path:ro"]}
+        assert result == {"Volume": ["/host/path:/container/path:ro"]}
 
     def test_short_form_bind_mount_with_rw(self) -> None:
-        """``/host/path:/container/path:rw`` → bind mount with mode."""
+        """``/host/path:/container/path:rw`` → Volume with mode."""
         result = convert_volumes(["/host/path:/container/path:rw"])
-        assert result == {"Bind": ["/host/path:/container/path:rw"]}
+        assert result == {"Volume": ["/host/path:/container/path:rw"]}
 
     def test_short_form_named_volume_with_ro(self) -> None:
         """``myvolume:/data:ro`` → named volume with mode."""
@@ -388,8 +388,7 @@ class TestConvertVolumes:
             ]
         )
         assert result == {
-            "Bind": ["/host:/container:ro"],
-            "Volume": ["data:/data", "short:/form"],
+            "Volume": ["/host:/container:ro", "data:/data", "short:/form"],
             "Tmpfs": ["/tmp"],
         }
 
@@ -404,12 +403,12 @@ class TestConvertVolumes:
             ]
         )
         assert result == {
-            "Bind": [
+            "Volume": [
                 "./data:/app/data",
+                "myvolume:/data",
                 "/host/path:/container/path",
                 "~/configs:/etc/app",
             ],
-            "Volume": ["myvolume:/data"],
         }
 
     def test_empty_list(self) -> None:
@@ -729,89 +728,103 @@ class TestConvertNetworks:
         assert convert_networks(None) == {}
 
     def test_list(self) -> None:
-        result = convert_networks(['frontend', 'backend'])
-        assert result == {'Network': ['frontend', 'backend']}
+        result = convert_networks(["frontend", "backend"])
+        assert result == {"Network": ["frontend", "backend"]}
 
     def test_dict_with_none_values(self) -> None:
-        result = convert_networks({'frontend': None, 'backend': None})
-        assert result == {'Network': ['frontend', 'backend']}
+        result = convert_networks({"frontend": None, "backend": None})
+        assert result == {"Network": ["frontend", "backend"]}
 
     def test_dict_with_aliases(self) -> None:
-        result = convert_networks({
-            'frontend': None,
-            'backend': {'aliases': ['web']},
-        })
+        result = convert_networks(
+            {
+                "frontend": None,
+                "backend": {"aliases": ["web"]},
+            }
+        )
         assert result == {
-            'Network': ['frontend', 'backend'],
-            'NetworkAlias': ['web'],
+            "Network": ["frontend", "backend"],
+            "NetworkAlias": ["web"],
         }
 
     def test_dict_with_ipv4_address(self) -> None:
-        result = convert_networks({
-            'frontend': {'ipv4_address': '172.20.0.10'},
-        })
+        result = convert_networks(
+            {
+                "frontend": {"ipv4_address": "172.20.0.10"},
+            }
+        )
         assert result == {
-            'Network': ['frontend'],
-            'IP': '172.20.0.10',
+            "Network": ["frontend"],
+            "IP": "172.20.0.10",
         }
 
     def test_dict_with_ipv6_address(self) -> None:
-        result = convert_networks({
-            'frontend': {'ipv6_address': 'fe80::1'},
-        })
+        result = convert_networks(
+            {
+                "frontend": {"ipv6_address": "fe80::1"},
+            }
+        )
         assert result == {
-            'Network': ['frontend'],
-            'IP6': 'fe80::1',
+            "Network": ["frontend"],
+            "IP6": "fe80::1",
         }
 
     def test_dict_with_mac_address(self) -> None:
-        result = convert_networks({
-            'frontend': {'mac_address': '02:42:ac:11:00:01'},
-        })
+        result = convert_networks(
+            {
+                "frontend": {"mac_address": "02:42:ac:11:00:01"},
+            }
+        )
         assert result == {
-            'Network': ['frontend'],
-            'PodmanArgs': ['--mac-address=02:42:ac:11:00:01'],
+            "Network": ["frontend"],
+            "PodmanArgs": ["--mac-address=02:42:ac:11:00:01"],
         }
 
     def test_dict_with_multiple_config_options(self) -> None:
-        result = convert_networks({
-            'frontend': {
-                'aliases': ['web', 'app'],
-                'ipv4_address': '172.20.0.10',
-                'ipv6_address': 'fe80::1',
-                'mac_address': '02:42:ac:11:00:01',
-            },
-        })
+        result = convert_networks(
+            {
+                "frontend": {
+                    "aliases": ["web", "app"],
+                    "ipv4_address": "172.20.0.10",
+                    "ipv6_address": "fe80::1",
+                    "mac_address": "02:42:ac:11:00:01",
+                },
+            }
+        )
         assert result == {
-            'Network': ['frontend'],
-            'NetworkAlias': ['web', 'app'],
-            'IP': '172.20.0.10',
-            'IP6': 'fe80::1',
-            'PodmanArgs': ['--mac-address=02:42:ac:11:00:01'],
+            "Network": ["frontend"],
+            "NetworkAlias": ["web", "app"],
+            "IP": "172.20.0.10",
+            "IP6": "fe80::1",
+            "PodmanArgs": ["--mac-address=02:42:ac:11:00:01"],
         }
 
     def test_dict_multiple_networks_with_config(self) -> None:
         """Last network wins for IP fields; aliases are accumulated."""
-        result = convert_networks({
-            'frontend': {'ipv4_address': '172.20.0.10', 'aliases': ['web']},
-            'backend': {'ipv4_address': '172.21.0.20', 'aliases': ['api']},
-        })
+        result = convert_networks(
+            {
+                "frontend": {"ipv4_address": "172.20.0.10", "aliases": ["web"]},
+                "backend": {"ipv4_address": "172.21.0.20", "aliases": ["api"]},
+            }
+        )
         assert result == {
-            'Network': ['frontend', 'backend'],
-            'NetworkAlias': ['web', 'api'],
-            'IP': '172.21.0.20',
+            "Network": ["frontend", "backend"],
+            "NetworkAlias": ["web", "api"],
+            "IP": "172.21.0.20",
         }
 
     def test_dict_unsupported_fields_dropped(self) -> None:
         """``link_local_ips``, ``priority``, ``driver_opts`` are silently dropped."""
-        result = convert_networks({
-            'frontend': {
-                'link_local_ips': ['169.254.0.1'],
-                'priority': 100,
-                'driver_opts': {'com.docker.some': 'value'},
-            },
-        })
-        assert result == {'Network': ['frontend']}
+        result = convert_networks(
+            {
+                "frontend": {
+                    "link_local_ips": ["169.254.0.1"],
+                    "priority": 100,
+                    "driver_opts": {"com.docker.some": "value"},
+                },
+            }
+        )
+        assert result == {"Network": ["frontend"]}
 
     def test_empty_list(self) -> None:
         assert convert_networks([]) == {}

@@ -347,7 +347,7 @@ def map_compose(
 
     # Determine project name
     if not project_name:
-        project_name = compose_data.get('name') or (
+        project_name = compose_data.get("name") or (
             compose_path.parent.name if compose_path else "default"
         )
 
@@ -358,7 +358,7 @@ def map_compose(
     # when generating the systemd service name (e.g. ``jellyfin.pod``
     # → ``jellyfin-pod.service``).
 
-    pod_service_name = f'{project_name}.pod'
+    pod_service_name = f"{project_name}.pod"
     bundle.pod = PodUnit(
         PodName=project_name,
         ExitPolicy="stop",
@@ -367,7 +367,7 @@ def map_compose(
     compose_dir = compose_path.parent if compose_path else Path.cwd()
 
     # Map services
-    services = compose_data.get('services', {})
+    services = compose_data.get("services", {})
     if services:
         for svc_name, svc in services.items():
             svc_model = Service.model_validate(svc) if isinstance(svc, dict) else svc
@@ -392,19 +392,19 @@ def map_compose(
                 pod_name=pod_service_name,
             )
 
-            # Resolve relative paths in bind-mount sources against the
+            # Resolve relative paths in volume sources against the
             # compose file directory.  Named volumes never have relative
-            # sources, so only Bind entries need this treatment.
-            if container.Bind:
-                resolved_binds: list[str] = []
-                for vol in container.Bind:
-                    parts = vol.split(':', 2)
+            # sources, so only entries with ./ or ../ prefixes need this.
+            if container.Volume:
+                resolved: list[str] = []
+                for vol in container.Volume:
+                    parts = vol.split(":", 2)
                     source = parts[0]
-                    if source.startswith('./') or source.startswith('../'):
+                    if source.startswith("./") or source.startswith("../"):
                         source = str((compose_dir / source).resolve())
                         parts[0] = source
-                    resolved_binds.append(':'.join(parts))
-                container.Bind = resolved_binds
+                    resolved.append(":".join(parts))
+                container.Volume = resolved
 
             # Podman requires PublishPort on the *pod*, not individual
             # containers, when containers share a pod's network
@@ -437,7 +437,7 @@ def map_compose(
                 container.install = {"WantedBy": "default.target"}
 
     # Map networks
-    networks = compose_data.get('networks', {})
+    networks = compose_data.get("networks", {})
     if networks:
         for net_name, net in networks.items():
             if net is None:
@@ -454,7 +454,7 @@ def map_compose(
             bundle.networks.append(network_unit)
 
     # Map volumes
-    volumes = compose_data.get('volumes', {})
+    volumes = compose_data.get("volumes", {})
     if volumes:
         for vol_name, vol in volumes.items():
             if vol is None:
