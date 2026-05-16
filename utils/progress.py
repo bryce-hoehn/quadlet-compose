@@ -2,22 +2,13 @@
 
 Displays one line per item with a Braille-spinner animation while
 operations are in-progress, and right-aligned status with elapsed
-time on completion.
-
-TTY output (in-place spinner → final status)::
+time on completion::
 
     ⠋ Creating web.container
     ✔ Creating web.container                              done (0.0s)
     ⠋ Creating db.container
     ✔ Creating db.container                               done (0.1s)
-
-Non-TTY output (pipes, redirects)::
-
-    Creating web.container ... done (0.0s)
-    Creating db.container ... done (0.1s)
 """
-
-from __future__ import annotations
 
 import re
 import shutil
@@ -33,11 +24,11 @@ _SPINNER_INTERVAL = 0.08  # ~12 fps
 
 # ── ANSI helpers ───────────────────────────────────────────────────────
 
-ESC = "\033["
+_ANSI_RE = re.compile(r"\033\[[0-9;]*m")
 
 
 def _clear_line() -> str:
-    return f"{ESC}2K\r"
+    return "\033[2K\r"
 
 
 # ── Colour helpers ─────────────────────────────────────────────────────
@@ -55,14 +46,12 @@ def _yellow(s: str) -> str:
     return f"\033[33m{s}\033[0m"
 
 
+_COLOR_FNS = {"green": _green, "red": _red, "yellow": _yellow}
+
+
 def _colorize(text: str, color: str | None) -> str:
-    if color == "green":
-        return _green(text)
-    if color == "red":
-        return _red(text)
-    if color == "yellow":
-        return _yellow(text)
-    return text
+    fn = _COLOR_FNS.get(color) if color else None
+    return fn(text) if fn else text
 
 
 # ── Formatting helpers ─────────────────────────────────────────────────
@@ -70,13 +59,11 @@ def _colorize(text: str, color: str | None) -> str:
 
 def _visible_len(s: str) -> int:
     """Return the visible length of *s*, excluding ANSI escape codes."""
-    return len(re.sub(r"\033\[[0-9;]*m", "", s))
+    return len(_ANSI_RE.sub("", s))
 
 
 def _format_elapsed(seconds: float) -> str:
     """Format an elapsed duration for display."""
-    if seconds < 0:
-        seconds = 0.0
     if seconds < 60:
         return f"{seconds:.1f}s"
     mins = int(seconds // 60)
@@ -86,7 +73,7 @@ def _format_elapsed(seconds: float) -> str:
 
 def _status_icon(status: str, color: str | None) -> str:
     """Return a coloured icon for *status*."""
-    icons = {"done": "✔", "error": "✗", "Error": "✗", "failed": "⚠"}
+    icons = {"done": "✔", "error": "✗", "failed": "⚠"}
     icon = icons.get(status, "•")
     return _colorize(icon, color) if color else icon
 
@@ -110,9 +97,8 @@ class ProgressWriter:
         writer.update('Creating', 'db', 'error', color='red')
         writer.finish()
 
-    On TTY streams, shows a Braille-spinner while each item is active,
-    then replaces it with a right-aligned coloured status and elapsed
-    time.  On non-TTY streams, prints one completion line per item.
+    Shows a Braille-spinner while each item is active, then replaces it
+    with a right-aligned coloured status and elapsed time.
 
     Call :meth:`finish` (or use ``try/finally``) to stop the spinner
     thread.  It is a daemon thread so it won't prevent process exit,
@@ -121,18 +107,15 @@ class ProgressWriter:
 
     def __init__(self, stream: IO[str] | None = None) -> None:
         self._stream: IO[str] = stream or sys.stderr
-        self._is_tty: bool = hasattr(self._stream, "isatty") and self._stream.isatty()
         self._labels: list[str] = []
         self._start_times: dict[str, float] = {}
         self._lock = Lock()
         self._spinner_thread: Thread | None = None
         self._stop_event = Event()
-        self._term_width = 80
-        if self._is_tty:
-            try:
-                self._term_width = shutil.get_terminal_size().columns or 80
-            except (ValueError, OSError):
-                self._term_width = 80
+        try:
+            self._term_width = shutil.get_terminal_size().columns or 80
+        except (ValueError, OSError):
+            self._term_width = 80
 
     # ── registration ─────────────────────────────────────────────
 
@@ -144,17 +127,11 @@ class ProgressWriter:
     # ── output ───────────────────────────────────────────────────
 
     def write_initial(self) -> None:
-        """Start progress display for all registered items.
-
-        On a TTY this starts the spinner on the first item.  On a
-        non-TTY this is a no-op (completion lines are printed by
-        :meth:`update`).
-        """
+        """Start progress display for all registered items."""
         if not self._labels:
             return
-        if self._is_tty:
-            self._start_times[self._labels[0]] = time.monotonic()
-            self._start_spinner(self._labels[0])
+        self._start_times[self._labels[0]] = time.monotonic()
+        self._start_spinner(self._labels[0])
 
     def update(
         self,
@@ -176,28 +153,27 @@ class ProgressWriter:
             else 0.0
         )
 
-        if self._is_tty and label in self._labels:
-            self._stop_spinner()
-            with self._lock:
-                icon = _status_icon(status, color)
-                status_colored = _colorize(status, color)
-                elapsed_str = _format_elapsed(elapsed)
-                right = f"{icon} {status_colored} {elapsed_str}"
-                right_vis = _visible_len(right)
-                padding = max(2, self._term_width - len(label) - right_vis)
-                self._stream.write(_clear_line())
-                self._stream.write(f'{label}{" " * padding}{right}\n')
-                self._stream.flush()
+        if label not in self._labels:
+            return
 
-            # Advance to the next item
-            idx = self._labels.index(label)
-            if idx + 1 < len(self._labels):
-                next_label = self._labels[idx + 1]
-                self._start_times[next_label] = time.monotonic()
-                self._start_spinner(next_label)
-        else:
-            # Non-TTY or unknown label — plain line
-            self._write_plain(label, status, color, elapsed)
+        self._stop_spinner()
+        with self._lock:
+            icon = _status_icon(status, color)
+            status_colored = _colorize(status, color)
+            elapsed_str = _format_elapsed(elapsed)
+            right = f"{icon} {status_colored} {elapsed_str}"
+            right_vis = _visible_len(right)
+            padding = max(2, self._term_width - len(label) - right_vis)
+            self._stream.write(_clear_line())
+            self._stream.write(f'{label}{" " * padding}{right}\n')
+            self._stream.flush()
+
+        # Advance to the next item
+        idx = self._labels.index(label)
+        if idx + 1 < len(self._labels):
+            next_label = self._labels[idx + 1]
+            self._start_times[next_label] = time.monotonic()
+            self._start_spinner(next_label)
 
     def finish(self) -> None:
         """Stop the spinner thread if still running."""
@@ -231,21 +207,6 @@ class ProgressWriter:
             i += 1
             self._stop_event.wait(_SPINNER_INTERVAL)
 
-    # ── Plain-text path (non-TTY / pipe / unknown label) ─────────
-
-    def _write_plain(
-        self,
-        label: str,
-        status: str,
-        color: str | None,
-        elapsed: float,
-    ) -> None:
-        with self._lock:
-            elapsed_str = _format_elapsed(elapsed)
-            status_colored = _colorize(status, color)
-            self._stream.write(f"{label} ... {status_colored} {elapsed_str}\n")
-            self._stream.flush()
-
 
 # ── Convenience: sequential operation progress ────────────────────────
 
@@ -267,17 +228,12 @@ def track_operation(
             lambda svc: run_cmd(['systemctl', '--user', 'start', svc]),
         )
 
-    Produces (TTY)::
+    Produces::
 
         ⠋ Starting web.service
         ✔ Starting web.service                              done (0.1s)
         ⠋ Starting db.service
         ✔ Starting db.service                               done (0.0s)
-
-    Produces (non-TTY)::
-
-        Starting web.service ... done (0.1s)
-        Starting db.service ... done (0.0s)
     """
     writer = ProgressWriter(stream)
     for item in items:

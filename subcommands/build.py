@@ -10,6 +10,97 @@ from utils.mapping import map_compose
 from utils.progress import track_operation
 from utils.quadlet import get_unit_directory, run_quadlet_generator
 
+HELP = "Build or rebuild services"
+ARGS = [
+    (
+        "--build-arg",
+        {"nargs": "*", "default": None, "help": "Set build-time variables"},
+    ),
+    ("--builder", {"default": None, "help": "Set builder to use"}),
+    (
+        "--check",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Check build configuration",
+        },
+    ),
+    (
+        ("-m", "--memory"),
+        {
+            "default": None,
+            "dest": "memory",
+            "help": "Memory limit for build container",
+        },
+    ),
+    (
+        "--no-cache",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't use cache when building",
+        },
+    ),
+    (
+        "--print",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Print equivalent bake file",
+        },
+    ),
+    (
+        "--provenance",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Add provenance attestation",
+        },
+    ),
+    (
+        "--pull",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Always attempt to pull newer image",
+        },
+    ),
+    (
+        "--push",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Push service images",
+        },
+    ),
+    (
+        ("-q", "--quiet"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "quiet",
+            "help": "Suppress build output",
+        },
+    ),
+    (
+        "--sbom",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Add SBOM attestation",
+        },
+    ),
+    ("--ssh", {"default": None, "help": "SSH authentications for building"}),
+    (
+        "--with-dependencies",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Also build dependencies",
+        },
+    ),
+]
+
 
 def compose_build(
     *,

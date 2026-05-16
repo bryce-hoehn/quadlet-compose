@@ -11,6 +11,238 @@ from utils.mapping import map_compose
 from utils.progress import track_operation
 from utils.quadlet import get_unit_directory, run_quadlet_generator
 
+HELP = "Create and start containers"
+ARGS = [
+    (
+        ("-d", "--detach"),
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Run in background without following logs",
+        },
+    ),
+    (
+        "--remove-orphans",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Remove containers for services not defined in the Compose file",
+        },
+    ),
+    (
+        "--build",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Build images before starting containers",
+        },
+    ),
+    (
+        "--no-build",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't build an image, even if policy",
+        },
+    ),
+    (
+        "--quiet-build",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Suppress build output",
+        },
+    ),
+    (
+        "--pull",
+        {
+            "choices": ["always", "missing", "never"],
+            "default": None,
+            "help": "Pull image before running",
+        },
+    ),
+    (
+        "--quiet-pull",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Pull without printing progress",
+        },
+    ),
+    (
+        "--force-recreate",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Recreate even if config unchanged",
+        },
+    ),
+    (
+        "--no-recreate",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't recreate existing containers",
+        },
+    ),
+    (
+        "--always-recreate-deps",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Recreate dependent containers",
+        },
+    ),
+    (
+        "--attach",
+        {
+            "nargs": "*",
+            "default": None,
+            "help": "Restrict attaching to specified services",
+        },
+    ),
+    (
+        "--attach-dependencies",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Attach to log output of dependent services",
+        },
+    ),
+    (
+        "--no-attach",
+        {
+            "nargs": "*",
+            "default": None,
+            "help": "Don't attach to specified services",
+        },
+    ),
+    (
+        "--no-color",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Produce monochrome output",
+        },
+    ),
+    (
+        "--no-log-prefix",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't print prefix in logs",
+        },
+    ),
+    (
+        "--timestamps",
+        {"action": "store_true", "default": False, "help": "Show timestamps"},
+    ),
+    (
+        "--abort-on-container-exit",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Stop all if any container stops",
+        },
+    ),
+    (
+        "--abort-on-container-failure",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Stop all if any container fails",
+        },
+    ),
+    (
+        "--exit-code-from",
+        {"default": None, "help": "Return exit code of selected service"},
+    ),
+    (
+        "--scale",
+        {
+            "nargs": "*",
+            "default": None,
+            "help": "Scale SERVICE to NUM instances",
+        },
+    ),
+    (
+        ("-t", "--timeout"),
+        {
+            "type": int,
+            "default": None,
+            "dest": "timeout",
+            "help": "Timeout in seconds for container shutdown",
+        },
+    ),
+    (
+        ("-V", "--renew-anon-volumes"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "renew_anon_volumes",
+            "help": "Recreate anonymous volumes",
+        },
+    ),
+    (
+        "--wait",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Wait for services to be running|healthy",
+        },
+    ),
+    (
+        "--wait-timeout",
+        {
+            "type": int,
+            "default": None,
+            "help": "Max duration to wait for services",
+        },
+    ),
+    (
+        "--no-deps",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't start linked services",
+        },
+    ),
+    (
+        "--no-start",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't start services after creating",
+        },
+    ),
+    (
+        "--menu",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Enable interactive shortcuts",
+        },
+    ),
+    (
+        ("-w", "--watch"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "watch",
+            "help": "Watch source code and rebuild on change",
+        },
+    ),
+    (
+        ("-y", "--yes"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "yes",
+            "help": "Assume yes to all prompts",
+        },
+    ),
+]
+
 QUADLET_EXTENSIONS = frozenset(
     {".container", ".pod", ".network", ".volume", ".build"},
 )

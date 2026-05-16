@@ -88,9 +88,6 @@ class TestFormatElapsed:
     def test_zero(self):
         assert _format_elapsed(0.0) == "0.0s"
 
-    def test_negative_clamps_to_zero(self):
-        assert _format_elapsed(-1.0) == "0.0s"
-
     def test_seconds(self):
         assert _format_elapsed(5.3) == "5.3s"
 
@@ -113,9 +110,6 @@ class TestStatusIcon:
     def test_error_no_color(self):
         assert _status_icon("error", None) == "✗"
 
-    def test_error_capitalized(self):
-        assert _status_icon("Error", None) == "✗"
-
     def test_failed_no_color(self):
         assert _status_icon("failed", None) == "⚠"
 
@@ -133,16 +127,15 @@ class TestStatusIcon:
         assert "\033[" in icon
 
 
-# ── ProgressWriter (non-TTY) ───────────────────────────────────────────
+# ── ProgressWriter ─────────────────────────────────────────────────────
 
 
-class TestProgressWriterNonTty:
-    """Tests for ProgressWriter with a non-TTY stream (StringIO)."""
+class TestProgressWriter:
+    """Tests for ProgressWriter."""
 
     def _writer(self) -> tuple[ProgressWriter, io.StringIO]:
         buf = io.StringIO()
         writer = ProgressWriter(stream=buf)
-        assert not writer._is_tty
         return writer, buf
 
     def test_add_tracks_labels(self):
@@ -150,77 +143,6 @@ class TestProgressWriterNonTty:
         writer.add("Creating", "web")
         writer.add("Creating", "db")
         assert writer._labels == ["Creating web", "Creating db"]
-
-    def test_write_initial_is_noop(self):
-        """On non-TTY, write_initial() produces no output."""
-        writer, buf = self._writer()
-        writer.add("Creating", "web")
-        writer.write_initial()
-        assert buf.getvalue() == ""
-
-    def test_update_prints_plain_line(self):
-        writer, buf = self._writer()
-        writer.add("Pulling", "nginx")
-        writer.write_initial()
-
-        writer.update("Pulling", "nginx", "done", color="green")
-        output = buf.getvalue()
-        assert "Pulling nginx" in output
-        assert "done" in output
-        assert output.endswith("\n")
-
-    def test_update_includes_elapsed(self):
-        writer, buf = self._writer()
-        writer.add("Creating", "web")
-        writer.write_initial()
-
-        writer.update("Creating", "web", "done", color="green")
-        output = buf.getvalue()
-        # Strip ANSI codes to check elapsed pattern
-        plain = re.sub(r"\033\[[0-9;]*m", "", output)
-        assert re.search(r"done\s+\d+\.\d+s", plain)
-
-    def test_update_with_color(self):
-        writer, buf = self._writer()
-        writer.add("Creating", "web")
-        writer.write_initial()
-
-        writer.update("Creating", "web", "done", color="green")
-        output = buf.getvalue()
-        assert _green("done") in output
-
-    def test_update_unknown_label_prints_anyway(self):
-        """Updating a label that wasn't registered still prints (non-TTY)."""
-        writer, buf = self._writer()
-        writer.update("Creating", "unknown", "done")
-        output = buf.getvalue()
-        assert "Creating unknown" in output
-        assert "done" in output
-
-    def test_finish_is_noop_without_spinner(self):
-        """finish() on non-TTY should not error."""
-        writer, _ = self._writer()
-        writer.finish()  # should not raise
-
-
-# ── ProgressWriter (TTY) ───────────────────────────────────────────────
-
-
-class _TtyStringIO(io.StringIO):
-    """StringIO that pretends to be a TTY."""
-
-    def isatty(self) -> bool:
-        return True
-
-
-class TestProgressWriterTty:
-    """Tests for ProgressWriter with a mock TTY stream."""
-
-    def _writer(self) -> tuple[ProgressWriter, _TtyStringIO]:
-        buf = _TtyStringIO()
-        writer = ProgressWriter(stream=buf)
-        assert writer._is_tty
-        return writer, buf
 
     def test_write_initial_starts_spinner(self):
         writer, buf = self._writer()
@@ -281,13 +203,12 @@ class TestProgressWriterTty:
         assert "Creating db" in writer._start_times
         writer.finish()
 
-    def test_update_unknown_label_falls_back_to_plain(self):
-        """Updating a label not in _labels falls back to _write_plain."""
+    def test_update_unknown_label_returns_early(self):
+        """Updating a label not in _labels returns without writing."""
         writer, buf = self._writer()
         writer.update("Creating", "unknown", "done")
         output = buf.getvalue()
-        assert "Creating unknown" in output
-        assert "done" in output
+        assert output == ""
 
     def test_finish_stops_spinner(self):
         writer, buf = self._writer()

@@ -6,6 +6,28 @@ from rich.console import Console
 from utils import run_cmd
 from utils.compose import get_service_info, parse_compose, resolve_compose_path
 
+HELP = "List images"
+ARGS = [
+    (
+        "--format",
+        {
+            "choices": ["table", "json"],
+            "default": "table",
+            "dest": "_format",
+            "help": "Output format",
+        },
+    ),
+    (
+        ("-q", "--quiet"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "quiet",
+            "help": "Only display image IDs",
+        },
+    ),
+]
+
 
 def compose_images(
     *,

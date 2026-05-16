@@ -9,6 +9,51 @@ from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 from utils.progress import ProgressWriter
 
+HELP = "Pull service images"
+ARGS = [
+    (
+        "--ignore-buildable",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Skip images that can be built",
+        },
+    ),
+    (
+        "--ignore-pull-failures",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Continue on pull failure",
+        },
+    ),
+    (
+        "--include-deps",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Also pull dependencies",
+        },
+    ),
+    (
+        "--policy",
+        {
+            "choices": ["missing", "always"],
+            "default": None,
+            "help": "Pull policy",
+        },
+    ),
+    (
+        ("-q", "--quiet"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "quiet",
+            "help": "Suppress output",
+        },
+    ),
+]
+
 
 def compose_pull(
     *,

@@ -5,6 +5,18 @@ from rich.console import Console
 from utils import run_cmd
 from utils.compose import get_service_info, parse_compose, resolve_compose_path
 
+HELP = "Kill containers"
+ARGS = [
+    (
+        ("-s", "--signal"),
+        {
+            "default": None,
+            "dest": "signal",
+            "help": "Signal to send (default: SIGKILL)",
+        },
+    ),
+]
+
 
 def compose_kill(
     *,

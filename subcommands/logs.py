@@ -3,6 +3,61 @@
 from utils import run_cmd
 from utils.compose import get_service_info, parse_compose, resolve_compose_path
 
+HELP = "View output from containers"
+ARGS = [
+    (
+        ("-f", "--follow"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "follow",
+            "help": "Follow log output",
+        },
+    ),
+    ("--index", {"type": int, "default": 0, "help": "Index of the container"}),
+    (
+        "--no-color",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Produce monochrome output",
+        },
+    ),
+    (
+        "--no-log-prefix",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't print prefix in logs",
+        },
+    ),
+    (
+        "--since",
+        {"default": 0, "help": "Show logs since timestamp or relative time"},
+    ),
+    (
+        "--tail",
+        {
+            "type": int,
+            "default": None,
+            "help": "Number of lines to show from end",
+        },
+    ),
+    (
+        ("-t", "--timestamps"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "timestamps",
+            "help": "Show timestamps",
+        },
+    ),
+    (
+        "--until",
+        {"default": 0, "help": "Show logs before timestamp or relative time"},
+    ),
+]
+
 
 def compose_logs(
     *,

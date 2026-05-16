@@ -6,6 +6,70 @@ from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 
+HELP = "Execute a command in a running service container"
+ARGS = [
+    ("service", {"help": "Service name"}),
+    ("command", {"nargs": "*", "help": "Command to execute"}),
+    (
+        ("-d", "--detach"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "detach",
+            "help": "Run in background",
+        },
+    ),
+    (
+        "--env",
+        {
+            "action": "append",
+            "default": None,
+            "help": "Set environment variables",
+        },
+    ),
+    (
+        ("--index",),
+        {
+            "type": int,
+            "default": 1,
+            "help": "Container index if service has multiple instances",
+        },
+    ),
+    (
+        ("-T", "--no-tty"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "no_tty",
+            "help": "Disable pseudo-TTY allocation",
+        },
+    ),
+    (
+        "--privileged",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Give extended privileges",
+        },
+    ),
+    (
+        ("--user", "-u"),
+        {
+            "default": None,
+            "dest": "user",
+            "help": "Username or UID",
+        },
+    ),
+    (
+        ("--workdir", "-w"),
+        {
+            "default": None,
+            "dest": "workdir",
+            "help": "Working directory inside the container",
+        },
+    ),
+]
+
 
 def compose_exec(
     *,

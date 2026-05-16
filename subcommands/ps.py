@@ -10,6 +10,90 @@ from rich.table import Table
 from utils import run_cmd
 from utils.compose import get_service_info, parse_compose, resolve_compose_path
 
+HELP = "List containers"
+ARGS = [
+    (
+        ("-a", "--all"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "_all",
+            "help": "Show all containers",
+        },
+    ),
+    (
+        "--filter",
+        {
+            "choices": [
+                "paused",
+                "restarting",
+                "removing",
+                "running",
+                "dead",
+                "created",
+                "exited",
+            ],
+            "default": None,
+            "dest": "_filter",
+            "help": "Filter containers by status",
+        },
+    ),
+    (
+        "--format",
+        {
+            "choices": ["pretty", "json"],
+            "default": "pretty",
+            "dest": "_format",
+            "help": "Output format",
+        },
+    ),
+    (
+        "--no-trunc",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't truncate output",
+        },
+    ),
+    (
+        "--orphans",
+        {
+            "action": "store_true",
+            "default": True,
+            "help": "Include orphaned containers",
+        },
+    ),
+    (
+        ("-q", "--quiet"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "quiet",
+            "help": "Only display IDs",
+        },
+    ),
+    (
+        "--services",
+        {"action": "store_true", "default": False, "help": "Display services"},
+    ),
+    (
+        "--status",
+        {
+            "choices": [
+                "paused",
+                "restarting",
+                "removing",
+                "running",
+                "dead",
+                "created",
+                "exited",
+            ],
+            "default": None,
+            "help": "Filter by status",
+        },
+    ),
+]
+
 
 def compose_ps(
     *,

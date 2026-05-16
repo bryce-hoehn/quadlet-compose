@@ -6,6 +6,21 @@ from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 
+HELP = "Print the public port for a port binding"
+ARGS = [
+    ("service", {"help": "Service name"}),
+    ("private_port", {"type": int, "nargs": "?", "help": "Private port"}),
+    (
+        "--protocol",
+        {
+            "choices": ["tcp", "udp"],
+            "default": "tcp",
+            "help": "Protocol (tcp or udp)",
+        },
+    ),
+    ("--index", {"type": int, "default": 1, "help": "Index of the container"}),
+]
+
 
 def compose_port(
     *,

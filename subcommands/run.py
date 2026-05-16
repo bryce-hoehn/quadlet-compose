@@ -6,6 +6,120 @@ from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 
+HELP = "Run a one-off command in a new container"
+ARGS = [
+    ("service", {"help": "Service name"}),
+    ("command", {"nargs": "*", "help": "Command and arguments"}),
+    (
+        "--build",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Build images before starting",
+        },
+    ),
+    (
+        ("-d", "--detach"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "detach",
+            "help": "Run in background",
+        },
+    ),
+    (
+        "--entrypoint",
+        {
+            "default": None,
+            "help": "Override entrypoint",
+        },
+    ),
+    (
+        ("-e", "--env"),
+        {
+            "action": "append",
+            "default": None,
+            "dest": "env",
+            "help": "Set environment variables",
+        },
+    ),
+    (
+        "--label",
+        {
+            "action": "append",
+            "default": None,
+            "help": "Add metadata to container",
+        },
+    ),
+    (
+        ("--name",),
+        {
+            "default": None,
+            "help": "Assign a name to the container",
+        },
+    ),
+    (
+        "--no-deps",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't start linked services",
+        },
+    ),
+    (
+        ("-p", "--publish"),
+        {
+            "action": "append",
+            "default": None,
+            "dest": "publish",
+            "help": "Publish a port",
+        },
+    ),
+    (
+        ("-q", "--quiet"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "quiet",
+            "help": "Suppress pull output",
+        },
+    ),
+    (
+        ("--rm",),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "remove",
+            "help": "Remove container after run",
+        },
+    ),
+    (
+        ("-u", "--user"),
+        {
+            "default": None,
+            "dest": "user",
+            "help": "Run as this user",
+        },
+    ),
+    (
+        ("-v", "--volume"),
+        {
+            "action": "append",
+            "default": None,
+            "dest": "volume",
+            "help": "Bind mount a volume",
+        },
+    ),
+    (
+        ("-w", "--workdir"),
+        {
+            "default": None,
+            "dest": "workdir",
+            "help": "Working directory inside the container",
+        },
+    ),
+]
+
 
 def compose_run(
     *,

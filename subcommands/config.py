@@ -7,6 +7,145 @@ from rich.console import Console
 
 from utils.compose import parse_compose, resolve_compose_path
 
+HELP = "Validate and view compose config"
+ARGS = [
+    (
+        "--format",
+        {
+            "choices": ["yaml", "json"],
+            "default": "yaml",
+            "dest": "_format",
+            "help": "Output format",
+        },
+    ),
+    (
+        "--environment",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Print environment used for interpolation",
+        },
+    ),
+    ("--hash", {"default": None, "help": "Print service config hash"}),
+    (
+        "--images",
+        {"action": "store_true", "default": False, "help": "Print image names"},
+    ),
+    (
+        "--lock-image-digests",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Produce override with image digests",
+        },
+    ),
+    (
+        "--models",
+        {"action": "store_true", "default": False, "help": "Print model names"},
+    ),
+    (
+        "--networks",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Print network names",
+        },
+    ),
+    (
+        "--no-consistency",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't check model consistency",
+        },
+    ),
+    (
+        "--no-env-resolution",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't resolve env files",
+        },
+    ),
+    (
+        "--no-interpolate",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't interpolate environment variables",
+        },
+    ),
+    (
+        "--no-normalize",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't normalize compose model",
+        },
+    ),
+    (
+        "--no-path-resolution",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't resolve file paths",
+        },
+    ),
+    (
+        ("-o", "--output"),
+        {"default": None, "dest": "output", "help": "Save to file"},
+    ),
+    (
+        "--profiles",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Print profile names",
+        },
+    ),
+    (
+        ("-q", "--quiet"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "quiet",
+            "help": "Only validate, don't print",
+        },
+    ),
+    (
+        "--resolve-image-digests",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Pin image tags to digests",
+        },
+    ),
+    (
+        "--services",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Print service names",
+        },
+    ),
+    (
+        "--variables",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Print model variables",
+        },
+    ),
+    (
+        "--volumes",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Print volume names",
+        },
+    ),
+]
+
 
 def compose_config(
     *,

@@ -12,6 +12,40 @@ from utils.mapping import map_compose
 from utils.progress import track_operation
 from utils.quadlet import get_unit_directory
 
+HELP = "Stop and remove containers"
+ARGS = [
+    (
+        "--remove-orphans",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Remove containers for services not defined in the Compose file",
+        },
+    ),
+    (
+        "--rmi",
+        {"choices": ["local", "all"], "default": None, "help": "Remove images"},
+    ),
+    (
+        ("-t", "--timeout"),
+        {
+            "type": int,
+            "default": 0,
+            "dest": "timeout",
+            "help": "Timeout in seconds for container shutdown",
+        },
+    ),
+    (
+        ("-v", "--volumes"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "volumes",
+            "help": "Remove named volumes declared as external",
+        },
+    ),
+]
+
 QUADLET_EXTENSIONS = frozenset(
     {".container", ".pod", ".network", ".volume", ".build"},
 )

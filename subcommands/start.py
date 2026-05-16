@@ -5,6 +5,9 @@ from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 from utils.progress import track_operation
 
+HELP = "Start containers without daemon-reload"
+ARGS: list = []
+
 
 def compose_start(
     *,

@@ -5,6 +5,11 @@ from rich.console import Console
 from utils import run_cmd
 from utils.compose import get_service_info, parse_compose, resolve_compose_path
 
+HELP = "Display running processes"
+ARGS = [
+    ("services", {"nargs": "*", "help": "Services to display"}),
+]
+
 
 def compose_top(
     *,

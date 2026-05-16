@@ -5,6 +5,19 @@ from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 from utils.progress import track_operation
 
+HELP = "Stop containers without disabling them"
+ARGS = [
+    (
+        ("-t", "--timeout"),
+        {
+            "type": int,
+            "default": None,
+            "dest": "timeout",
+            "help": "Timeout in seconds for container shutdown",
+        },
+    ),
+]
+
 
 def compose_stop(
     *,

@@ -8,6 +8,100 @@ from rich.console import Console
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 
+HELP = "Preview quadlet files"
+ARGS = [
+    (
+        "--format",
+        {
+            "choices": ["yaml", "json"],
+            "default": "yaml",
+            "dest": "_format",
+            "help": "Output format",
+        },
+    ),
+    (
+        "--hash",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Print service config hash",
+        },
+    ),
+    (
+        "--images",
+        {"action": "store_true", "default": False, "help": "Print image names"},
+    ),
+    (
+        "--no-consistency",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't check model consistency",
+        },
+    ),
+    (
+        "--no-interpolate",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't interpolate environment variables",
+        },
+    ),
+    (
+        "--no-normalize",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Don't normalize compose model",
+        },
+    ),
+    (
+        ("-o", "--output"),
+        {"default": None, "dest": "output", "help": "Save to file"},
+    ),
+    (
+        "--profiles",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Print profile names",
+        },
+    ),
+    (
+        ("-q", "--quiet"),
+        {
+            "action": "store_true",
+            "default": False,
+            "dest": "quiet",
+            "help": "Only validate, don't print",
+        },
+    ),
+    (
+        "--resolve-image-digests",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Pin image tags to digests",
+        },
+    ),
+    (
+        "--services",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Print service names",
+        },
+    ),
+    (
+        "--volumes",
+        {
+            "action": "store_true",
+            "default": False,
+            "help": "Print volume names",
+        },
+    ),
+]
+
 
 def compose_convert(
     *,
