@@ -144,6 +144,40 @@ class TestToQuadlet:
         result = unit.to_quadlet()
         assert "[Install]" not in result
 
+    def test_service_section_appended(self) -> None:
+        """When service is set, [Service] section should appear after [Container]."""
+        unit = ContainerUnit(
+            Image="nginx:latest",
+            service={"ExecStopPost": ""},
+        )
+        result = unit.to_quadlet()
+        assert "[Container]" in result
+        assert "\n\n[Service]\nExecStopPost=" in result
+
+    def test_service_section_absent_when_none(self) -> None:
+        """When service is None (default), no [Service] section should appear."""
+        unit = ContainerUnit(Image="nginx:latest")
+        result = unit.to_quadlet()
+        assert "[Service]" not in result
+
+    def test_service_section_absent_when_empty(self) -> None:
+        """When service is an empty dict, no [Service] section should appear."""
+        unit = ContainerUnit(Image="nginx:latest", service={})
+        result = unit.to_quadlet()
+        assert "[Service]" not in result
+
+    def test_service_before_install(self) -> None:
+        """[Service] section should appear before [Install] section."""
+        unit = ContainerUnit(
+            Image="nginx:latest",
+            service={"ExecStopPost": ""},
+            install={"WantedBy": "default.target"},
+        )
+        result = unit.to_quadlet()
+        service_pos = result.index("[Service]")
+        install_pos = result.index("[Install]")
+        assert service_pos < install_pos
+
 
 # ---------------------------------------------------------------------------
 # ContainerUnit

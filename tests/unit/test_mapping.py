@@ -716,6 +716,40 @@ class TestMapCompose:
         container = bundle.containers[0]
         assert container.install is None
 
+    def test_compose_container_service_overrides_exec_stop_post(self) -> None:
+        """All containers should get ExecStopPost= to prevent auto-removal."""
+        data = {
+            "services": {
+                "web": {"image": "nginx:latest"},
+            },
+        }
+        bundle = map_compose(data, project_name="test")
+        container = bundle.containers[0]
+        assert container.service == {"ExecStopPost": ""}
+        # Verify it appears in the rendered quadlet file
+        files = bundle.to_quadlet_files()
+        content = files["test-web.container"]
+        assert "[Service]" in content
+        assert "ExecStopPost=" in content
+
+    def test_compose_service_section_with_install(self) -> None:
+        """[Service] and [Install] sections should both render when present."""
+        data = {
+            "services": {
+                "web": {"image": "nginx:latest", "restart": "always"},
+            },
+        }
+        bundle = map_compose(data, project_name="test")
+        container = bundle.containers[0]
+        assert container.service == {"ExecStopPost": ""}
+        assert container.install == {"WantedBy": "default.target"}
+        files = bundle.to_quadlet_files()
+        content = files["test-web.container"]
+        assert "[Service]" in content
+        assert "ExecStopPost=" in content
+        assert "[Install]" in content
+        assert "WantedBy=default.target" in content
+
     def test_port_deduplication_across_services(self) -> None:
         """Duplicate PublishPort values from different services are deduplicated on the pod."""
         data = {

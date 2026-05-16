@@ -41,6 +41,12 @@ class QuadletUnit(BaseModel):
     _scalar_fields: ClassVar[tuple[str, ...]] = ()
     _list_fields: ClassVar[tuple[str, ...]] = ()
 
+    #: Optional ``[Service]`` section key-value pairs (e.g.
+    #: ``{"ExecStopPost": ""}``).  Podman Quadlet copies this section
+    #: verbatim into the generated ``.service`` file, allowing overrides
+    #: of the default ExecStop/ExecStopPost behaviour.
+    service: dict[str, str] | None = None
+
     #: Optional ``[Install]`` section key-value pairs (e.g.
     #: ``{"WantedBy": "default.target"}``).  Podman Quadlet copies this
     #: section verbatim into the generated ``.service`` file, allowing
@@ -65,8 +71,9 @@ class QuadletUnit(BaseModel):
         """Render the model as a Quadlet unit file string.
 
         Only non-``None`` fields are emitted.  List fields produce one
-        line per element.  If ``install`` is set, an ``[Install]``
-        section is appended after the main section.
+        line per element.  If ``service`` is set, a ``[Service]``
+        section is appended after the main section.  If ``install`` is
+        set, an ``[Install]`` section is appended last.
 
         Returns:
             The complete ``[{section}]`` unit file content **without** a
@@ -84,6 +91,16 @@ class QuadletUnit(BaseModel):
             if values:
                 for value in values:
                     lines.append(f"{field_name}={value}")
+
+        # Append [Service] section to override Quadlet defaults.
+        # Quadlet copies this section verbatim into the generated
+        # .service file, allowing e.g. ExecStopPost= to prevent
+        # automatic container removal on stop/failure.
+        if self.service:
+            lines.append("")
+            lines.append("[Service]")
+            for key, value in self.service.items():
+                lines.append(f"{key}={value}")
 
         # Append [Install] section so systemctl --user enable works on
         # generated units.  Without this, systemd refuses with

@@ -442,6 +442,12 @@ def map_compose(
             if svc_model.restart in ("always", "unless-stopped"):
                 container.install = {"WantedBy": "default.target"}
 
+            # Override Quadlet's default ExecStopPost=podman rm so that
+            # containers persist after stop/failure (matching docker-
+            # compose behaviour).  An empty assignment clears all
+            # previous ExecStopPost entries in the generated service.
+            container.service = {"ExecStopPost": ""}
+
     # Map networks
     networks = compose_data.get("networks", {})
     if networks:
