@@ -47,8 +47,9 @@ def compose_build(
         dest = unit_dir / filename
         dest.write_text(content)
 
-    # Run the Quadlet generator directly to produce .service files
-    run_quadlet_generator(unit_dir)
+    # Run the Quadlet generator directly to produce .service files,
+    # scoped to only this project's build files.
+    run_quadlet_generator(unit_dir, files=list(build_files))
 
     # Reload systemd so it discovers the newly generated units
     run_cmd(["systemctl", "--user", "daemon-reload"])

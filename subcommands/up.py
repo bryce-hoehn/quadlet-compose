@@ -99,8 +99,9 @@ def compose_up(
         lambda f: (unit_dir / f).write_text(quadlet_files[f]),
     )
 
-    # Run the Quadlet generator directly to produce .service files.
-    run_quadlet_generator(unit_dir)
+    # Run the Quadlet generator directly to produce .service files,
+    # scoped to only this project's quadlet files.
+    run_quadlet_generator(unit_dir, files=list(quadlet_files))
 
     # Reload systemd so it discovers the newly generated units
     run_cmd(["systemctl", "--user", "daemon-reload"])

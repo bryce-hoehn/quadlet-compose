@@ -1,5 +1,6 @@
 import json
 import subprocess
+import tempfile
 from pathlib import Path
 
 from .compose import ComposeError
@@ -41,13 +42,22 @@ def find_quadlet_binary() -> str | None:
         return None
 
 
-def run_quadlet_generator(unit_dir: Path | None = None) -> None:
+def run_quadlet_generator(
+    unit_dir: Path | None = None,
+    *,
+    files: list[str] | None = None,
+) -> None:
     """Run the Podman Quadlet generator directly.
 
     This is a reliable alternative to relying on the systemd user generator
     symlink being installed.  Writes generated ``.service`` files to the
     user's ``~/.config/systemd/user/`` directory so that ``systemctl --user
     daemon-reload`` can discover them.
+
+    When *files* is provided, only those quadlet files (named relative to
+    *unit_dir*) are processed.  A temporary directory is created containing
+    symlinks to just those files so that the generator does not touch quadlet
+    units belonging to other projects.
 
     Raises :class:`ComposeError` if the ``quadlet`` binary cannot be found
     or if the generator exits with an error.
@@ -67,4 +77,13 @@ def run_quadlet_generator(unit_dir: Path | None = None) -> None:
     output_dir = Path.home() / ".config" / "systemd" / "user"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    run_cmd([quadlet, "--user", str(unit_dir)])
+    if files:
+        # Create a temporary directory with symlinks to only the
+        # project's quadlet files so the generator is scoped accordingly.
+        with tempfile.TemporaryDirectory(prefix="quadlet-compose-") as tmp:
+            tmp_dir = Path(tmp)
+            for name in files:
+                (tmp_dir / name).symlink_to(unit_dir / name)
+            run_cmd([quadlet, "--user", str(tmp_dir)])
+    else:
+        run_cmd([quadlet, "--user", str(unit_dir)])
