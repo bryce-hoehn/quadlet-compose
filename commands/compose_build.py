@@ -7,7 +7,7 @@ from rich.console import Console
 
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
-from utils.quadlet import get_unit_directory
+from utils.quadlet import get_unit_directory, run_quadlet_generator
 
 
 def compose_build(
@@ -46,7 +46,10 @@ def compose_build(
         dest = unit_dir / filename
         dest.write_text(content)
 
-    # Reload systemd so it discovers the newly written units
+    # Run the Quadlet generator directly to produce .service files
+    run_quadlet_generator(unit_dir)
+
+    # Reload systemd so it discovers the newly generated units
     subprocess.run(
         ["systemctl", "--user", "daemon-reload"],
         check=True,

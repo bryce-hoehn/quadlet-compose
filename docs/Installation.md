@@ -116,11 +116,12 @@ Make quadlet-compose the default podman compose provider.
   };
 ```
 
-### Quadlet systemd generator
+### Quadlet systemd generator (optional)
 
-NixOS does not automatically install the Podman Quadlet systemd user generator.
-Without it, `systemctl --user daemon-reload` cannot convert `.container` files
-into `.service` units. Add this to your configuration:
+quadlet-compose runs the Podman Quadlet generator directly (via
+`podman info` to locate the `quadlet` binary), so the systemd user-generator
+symlink is **not required**. However, if you want `systemctl --user daemon-reload`
+to also work outside of quadlet-compose, add this to your configuration:
 
 ```nix
   environment.etc."systemd/user-generators/podman-user-generator" = {
