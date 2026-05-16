@@ -8,6 +8,7 @@ from rich.console import Console
 from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
+from utils.progress import track_operation
 from utils.quadlet import get_unit_directory, run_quadlet_generator
 
 QUADLET_EXTENSIONS = frozenset(
@@ -92,10 +93,11 @@ def compose_up(
             path.unlink()
 
     # Write quadlet files directly to the unit directory
-    for filename, content in quadlet_files.items():
-        dest = unit_dir / filename
-        console.print(str(dest))
-        dest.write_text(content)
+    track_operation(
+        "Creating",
+        list(quadlet_files.keys()),
+        lambda f: (unit_dir / f).write_text(quadlet_files[f]),
+    )
 
     # Run the Quadlet generator directly to produce .service files.
     run_quadlet_generator(unit_dir)
@@ -104,6 +106,8 @@ def compose_up(
     run_cmd(["systemctl", "--user", "daemon-reload"])
 
     # Start all current services
-    for svc in bundle.service_names():
-        console.print(f"starting {svc}")
-        run_cmd(["systemctl", "--user", "start", svc])
+    track_operation(
+        "Starting",
+        list(bundle.service_names()),
+        lambda svc: run_cmd(["systemctl", "--user", "start", svc]),
+    )

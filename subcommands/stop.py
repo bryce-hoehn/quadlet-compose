@@ -1,10 +1,9 @@
 """compose stop command — stop containers without disabling them."""
 
-from rich.console import Console
-
 from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
+from utils.progress import track_operation
 
 
 def compose_stop(
@@ -17,15 +16,19 @@ def compose_stop(
     Unlike ``compose_down``, this does **not** disable or remove units.
     Use ``compose_start`` to resume.
     """
-    console = Console()
     compose_path = resolve_compose_path(compose_file)
     compose = parse_compose(compose_path)
 
     bundle = map_compose(compose, compose_path=compose_path)
 
-    for svc in bundle.service_names():
+    def _stop_svc(svc: str) -> None:
         cmd = ["systemctl", "--user", "stop", svc]
         if timeout is not None:
             cmd.extend(["--job-mode", "replace-irreversibly"])
-        console.print(f"stopping {svc}")
         run_cmd(cmd)
+
+    track_operation(
+        "Stopping",
+        list(bundle.service_names()),
+        _stop_svc,
+    )

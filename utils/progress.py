@@ -145,10 +145,7 @@ class ProgressWriter:
             self._stream.flush()
 
     def _write_line(self, label: str, status: str) -> None:
-        if self._is_tty:
-            self._write_noansi(label, status)
-        else:
-            self._write_noansi(label, status)
+        self._write_noansi(label, status)
 
 
 # ── Convenience: sequential operation progress ───────────────────────

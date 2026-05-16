@@ -9,6 +9,7 @@ from rich.console import Console
 from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
+from utils.progress import track_operation
 from utils.quadlet import get_unit_directory
 
 QUADLET_EXTENSIONS = frozenset(
@@ -70,41 +71,42 @@ def compose_down(
     run_cmd(["systemctl", "--user", "daemon-reload"])
 
     # Stop all current services
-    for svc in bundle.service_names():
-        console.print(f"stopping {svc}")
-        run_cmd(["systemctl", "--user", "stop", svc])
+    track_operation(
+        "Stopping",
+        list(bundle.service_names()),
+        lambda svc: run_cmd(["systemctl", "--user", "stop", svc]),
+    )
 
     # Remove images if requested
     if rmi is not None:
-        for unit in bundle.containers:
-            image = unit.Image
-            if not image:
-                continue
-            if rmi == "local" and ":" in image:
-                # Only remove images that don't have a tag (local builds)
-                continue
-            console.print(f"removing image {image}")
-            subprocess.run(
-                ["podman", "rmi", image],
-                check=False,
-            )
+        images = [
+            unit.Image
+            for unit in bundle.containers
+            if unit.Image and not (rmi == "local" and ":" in unit.Image)
+        ]
+        track_operation(
+            "Removing image",
+            images,
+            lambda img: subprocess.run(["podman", "rmi", img], check=False),
+        )
 
     # Remove named volumes if requested
     if volumes:
-        for unit in bundle.volumes:
-            vol_name = unit.VolumeName
-            if vol_name:
-                console.print(f"removing volume {vol_name}")
-                subprocess.run(
-                    ["podman", "volume", "rm", vol_name],
-                    check=False,
-                )
+        vol_names = [unit.VolumeName for unit in bundle.volumes if unit.VolumeName]
+        track_operation(
+            "Removing volume",
+            vol_names,
+            lambda vol: subprocess.run(
+                ["podman", "volume", "rm", vol],
+                check=False,
+            ),
+        )
 
     # Remove quadlet files
-    for filename in quadlet_files:
-        path = unit_dir / filename
-        if path.exists():
-            path.unlink()
-            console.print(f"removed {path}")
+    track_operation(
+        "Removing",
+        list(quadlet_files.keys()),
+        lambda f: (unit_dir / f).unlink() if (unit_dir / f).exists() else None,
+    )
 
     run_cmd(["systemctl", "--user", "daemon-reload"])

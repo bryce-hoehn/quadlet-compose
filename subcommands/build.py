@@ -7,6 +7,7 @@ from rich.console import Console
 from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
+from utils.progress import track_operation
 from utils.quadlet import get_unit_directory, run_quadlet_generator
 
 
@@ -53,10 +54,13 @@ def compose_build(
     run_cmd(["systemctl", "--user", "daemon-reload"])
 
     # Start build units
-    for unit in bundle.builds:
-        tag = unit.ImageTag or "build"
-        # Quadlet: {tag}.build → {tag}.service
-        svc = f"{tag}.service"
-        if not quiet:
-            console.print(f"building {svc}")
-        run_cmd(["systemctl", "--user", "start", svc])
+    build_services = [f'{unit.ImageTag or "build"}.service' for unit in bundle.builds]
+    if quiet:
+        for svc in build_services:
+            run_cmd(["systemctl", "--user", "start", svc])
+    else:
+        track_operation(
+            "Building",
+            build_services,
+            lambda svc: run_cmd(["systemctl", "--user", "start", svc]),
+        )

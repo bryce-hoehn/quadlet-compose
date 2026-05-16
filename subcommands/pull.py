@@ -7,6 +7,7 @@ from typing import Literal
 from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
+from utils.progress import ProgressWriter
 
 
 def compose_pull(
@@ -41,17 +42,23 @@ def compose_pull(
             console.print("[yellow]No images to pull.[/yellow]")
         return
 
+    writer = ProgressWriter()
     for image in images:
-        if not quiet:
-            console.print(f"pulling {image}")
+        writer.add("Pulling", image)
+    writer.write_initial()
 
+    for image in images:
         args = ["podman", "pull"]
-
         if quiet:
             args.append("--quiet")
-
         args.append(image)
 
         result = subprocess.run(args, check=False)
-        if result.returncode != 0 and not ignore_pull_failures:
-            raise RuntimeError(f"Failed to pull {image}")
+        if result.returncode != 0:
+            if ignore_pull_failures:
+                writer.update("Pulling", image, "failed", color="yellow")
+            else:
+                writer.update("Pulling", image, "error", color="red")
+                raise RuntimeError(f"Failed to pull {image}")
+        else:
+            writer.update("Pulling", image, "done", color="green")
