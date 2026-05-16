@@ -3,7 +3,6 @@
   // for the documentation about the extensions.json format
   "recommendations": [
       "ms-python.black-formatter",
-      "tamasfe.even-better-toml",
       "SanjulaGanepola.github-local-actions",
       "jnoortheen.nix-ide",
       "ms-python.vscode-pylance",
