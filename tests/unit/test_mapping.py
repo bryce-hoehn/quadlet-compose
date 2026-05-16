@@ -789,3 +789,61 @@ class TestMapCompose:
         container = bundle.containers[0]
         assert container.Volume is not None
         assert container.Volume == ["myvolume:/data"]
+
+    # -- Build context relative path resolution --------------------------------
+
+    def test_build_context_relative_path_resolution(self) -> None:
+        """Relative build context is resolved against the compose file directory."""
+        data = {
+            "services": {
+                "web": {
+                    "build": {"context": "./app", "dockerfile": "Dockerfile"},
+                },
+            },
+        }
+        compose_path = Path("/home/user/myproject/docker-compose.yml")
+        bundle = map_compose(data, project_name="test", compose_path=compose_path)
+        assert len(bundle.builds) == 1
+        assert bundle.builds[0].SetWorkingDirectory == "/home/user/myproject/app"
+
+    def test_build_context_parent_relative_path_resolution(self) -> None:
+        """Build context with ``../`` is resolved against the compose file directory."""
+        data = {
+            "services": {
+                "web": {
+                    "build": {"context": "../shared/app"},
+                },
+            },
+        }
+        compose_path = Path("/home/user/myproject/docker-compose.yml")
+        bundle = map_compose(data, project_name="test", compose_path=compose_path)
+        assert len(bundle.builds) == 1
+        assert bundle.builds[0].SetWorkingDirectory == "/home/user/shared/app"
+
+    def test_build_context_absolute_path_unchanged(self) -> None:
+        """Absolute build context paths are not modified."""
+        data = {
+            "services": {
+                "web": {
+                    "build": {"context": "/opt/myapp"},
+                },
+            },
+        }
+        compose_path = Path("/home/user/myproject/docker-compose.yml")
+        bundle = map_compose(data, project_name="test", compose_path=compose_path)
+        assert len(bundle.builds) == 1
+        assert bundle.builds[0].SetWorkingDirectory == "/opt/myapp"
+
+    def test_build_context_string_relative_resolution(self) -> None:
+        """Shorthand build (string) with relative path is resolved."""
+        data = {
+            "services": {
+                "web": {
+                    "build": "./webapp",
+                },
+            },
+        }
+        compose_path = Path("/home/user/myproject/docker-compose.yml")
+        bundle = map_compose(data, project_name="test", compose_path=compose_path)
+        assert len(bundle.builds) == 1
+        assert bundle.builds[0].SetWorkingDirectory == "/home/user/myproject/webapp"

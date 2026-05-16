@@ -21,6 +21,7 @@ from models.quadlet.network import NetworkUnit
 from models.quadlet.pod import PodUnit
 from models.quadlet.volume import VolumeUnit
 
+from .converters._helpers import _resolve_relative_path
 from .field_maps import (
     BUILD_FIELD_MAP,
     NETWORK_FIELD_MAP,
@@ -382,6 +383,14 @@ def map_compose(
                     service_name=svc_name,
                     project_name=project_name,
                 )
+                # Resolve relative build context against the compose file
+                # directory.  Quadlet would otherwise resolve it against
+                # ~/.config/containers/systemd/.
+                if build_unit.SetWorkingDirectory:
+                    build_unit.SetWorkingDirectory = _resolve_relative_path(
+                        build_unit.SetWorkingDirectory,
+                        compose_dir,
+                    )
                 bundle.builds.append(build_unit)
 
             # Map the service to a container
@@ -399,10 +408,7 @@ def map_compose(
                 resolved: list[str] = []
                 for vol in container.Volume:
                     parts = vol.split(":", 2)
-                    source = parts[0]
-                    if source.startswith("./") or source.startswith("../"):
-                        source = str((compose_dir / source).resolve())
-                        parts[0] = source
+                    parts[0] = _resolve_relative_path(parts[0], compose_dir)
                     resolved.append(":".join(parts))
                 container.Volume = resolved
 

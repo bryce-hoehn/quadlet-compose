@@ -1,5 +1,6 @@
 """Internal helper utilities for converter functions."""
 
+from pathlib import Path
 from typing import Any
 
 
@@ -20,3 +21,13 @@ def _as_optional_list(value: Any) -> list[str] | None:
     if value is None:
         return None
     return _as_list(value)
+
+
+def _resolve_relative_path(path: str, base_dir: Path) -> str:
+    """Resolve a relative path against *base_dir* if it starts with ``./`` or ``../``.
+
+    Absolute paths and non-path values are returned unchanged.
+    """
+    if path.startswith("./") or path.startswith("../"):
+        return str((base_dir / path).resolve())
+    return path
