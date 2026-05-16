@@ -1,7 +1,6 @@
 """compose build command — build or rebuild services."""
 
 import subprocess
-import tempfile
 from pathlib import Path
 
 from rich.console import Console
@@ -39,19 +38,19 @@ def compose_build(
         console.print("[yellow]No services with build definitions found.[/yellow]")
         return
 
-    # Write build unit files to a temp dir, then install atomically via
-    # `podman quadlet install` which handles the generator + daemon-reload.
+    # Write build unit files directly to the unit directory
     quadlet_files = bundle.to_quadlet_files()
     build_files = {k: v for k, v in quadlet_files.items() if k.endswith(".build")}
-    with tempfile.TemporaryDirectory(prefix='quadlet-compose-') as tmp:
-        tmp_dir = Path(tmp)
-        for filename, content in build_files.items():
-            dest = tmp_dir / filename
-            dest.write_text(content)
-        subprocess.run(
-            ["podman", "quadlet", "install", "--replace", str(tmp_dir)],
-            check=True,
-        )
+    unit_dir = get_unit_directory()
+    for filename, content in build_files.items():
+        dest = unit_dir / filename
+        dest.write_text(content)
+
+    # Reload systemd so it discovers the newly written units
+    subprocess.run(
+        ["systemctl", "--user", "daemon-reload"],
+        check=True,
+    )
 
     # Start build units
     for unit in bundle.builds:
