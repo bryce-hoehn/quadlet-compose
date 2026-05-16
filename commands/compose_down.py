@@ -6,6 +6,7 @@ from typing import Literal
 
 from rich.console import Console
 
+from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 from utils.quadlet import get_unit_directory
@@ -63,24 +64,15 @@ def compose_down(
             stem = path.name.rsplit(".", 1)[0]
             svc = f"{stem}.service"
             console.print(f"removing orphan {path.name}")
-            subprocess.run(
-                ["systemctl", "--user", "stop", svc],
-                check=True,
-            )
+            run_cmd(["systemctl", "--user", "stop", svc])
             path.unlink()
 
-    subprocess.run(
-        ["systemctl", "--user", "daemon-reload"],
-        check=True,
-    )
+    run_cmd(["systemctl", "--user", "daemon-reload"])
 
     # Stop all current services
     for svc in bundle.service_names():
         console.print(f"stopping {svc}")
-        subprocess.run(
-            ["systemctl", "--user", "stop", svc],
-            check=True,
-        )
+        run_cmd(["systemctl", "--user", "stop", svc])
 
     # Remove images if requested
     if rmi is not None:
@@ -115,7 +107,4 @@ def compose_down(
             path.unlink()
             console.print(f"removed {path}")
 
-    subprocess.run(
-        ["systemctl", "--user", "daemon-reload"],
-        check=True,
-    )
+    run_cmd(["systemctl", "--user", "daemon-reload"])

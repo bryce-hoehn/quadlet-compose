@@ -1,7 +1,6 @@
 """compose logs command — view output from containers."""
 
-import subprocess
-
+from utils import run_cmd
 from utils.compose import get_service_info, parse_compose, resolve_compose_path
 
 
@@ -40,4 +39,4 @@ def compose_logs(
         args.extend(["--until", str(until)])
 
     args.extend(containers)
-    subprocess.run(args, check=True)
+    run_cmd(args)

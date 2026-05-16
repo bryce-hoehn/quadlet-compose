@@ -4,6 +4,7 @@ import sys
 from rich.console import Console
 from rich.text import Text
 
+from utils import ComposeError
 from commands import (
     compose_up,
     compose_down,
@@ -1220,7 +1221,7 @@ def main() -> None:
         skip = {"command", "func", "show_help", "compose_file", "project_name"}
         kwargs = {k: v for k, v in vars(args).items() if k not in skip}
         args.func(compose_file=args.compose_file, **kwargs)
-    except ValueError as e:
+    except (ValueError, ComposeError) as e:
         console = Console(stderr=True)
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)

@@ -4,6 +4,7 @@ import subprocess
 
 from rich.console import Console
 from typing import Literal
+from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 

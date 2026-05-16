@@ -1,10 +1,9 @@
 """compose images command — list images."""
 
-import subprocess
-
 from typing import Literal
 
 from rich.console import Console
+from utils import run_cmd
 from utils.compose import get_service_info, parse_compose, resolve_compose_path
 
 
@@ -23,4 +22,4 @@ def compose_images(
     info = get_service_info(compose, compose_path=compose_path)
 
     label = f"io.quadlet-compose.project={info.project_name}"
-    subprocess.run(["podman", "images", "--filter", f"label={label}"], check=True)
+    run_cmd(["podman", "images", "--filter", f"label={label}"])

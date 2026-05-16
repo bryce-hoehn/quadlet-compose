@@ -7,6 +7,7 @@ from typing import Literal
 from rich.console import Console
 from rich.table import Table
 
+from utils import run_cmd
 from utils.compose import get_service_info, parse_compose, resolve_compose_path
 
 
@@ -64,11 +65,11 @@ def compose_ps(
 
     if _format == "json":
         args.extend(["--format", "json"])
-        result = subprocess.run(args, capture_output=True, text=True, check=True)
+        result = run_cmd(args, capture_output=True, text=True)
         if result.stdout.strip():
             for line in result.stdout.strip().split("\n"):
                 data = json.loads(line)
                 print(json.dumps(data))
         return
 
-    subprocess.run(args, check=True)
+    run_cmd(args)

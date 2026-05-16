@@ -1,9 +1,8 @@
 """compose run command — run a one-off command in a new container."""
 
-import subprocess
-
 from rich.console import Console
 
+from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 
@@ -96,4 +95,4 @@ def compose_run(
     if command:
         args.extend(command)
 
-    subprocess.run(args, check=True)
+    run_cmd(args)

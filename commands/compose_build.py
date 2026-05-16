@@ -1,10 +1,10 @@
 """compose build command — build or rebuild services."""
 
-import subprocess
 from pathlib import Path
 
 from rich.console import Console
 
+from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 from utils.quadlet import get_unit_directory, run_quadlet_generator
@@ -50,10 +50,7 @@ def compose_build(
     run_quadlet_generator(unit_dir)
 
     # Reload systemd so it discovers the newly generated units
-    subprocess.run(
-        ["systemctl", "--user", "daemon-reload"],
-        check=True,
-    )
+    run_cmd(["systemctl", "--user", "daemon-reload"])
 
     # Start build units
     for unit in bundle.builds:
@@ -62,7 +59,4 @@ def compose_build(
         svc = f"{tag}.service"
         if not quiet:
             console.print(f"building {svc}")
-        subprocess.run(
-            ["systemctl", "--user", "start", svc],
-            check=True,
-        )
+        run_cmd(["systemctl", "--user", "start", svc])

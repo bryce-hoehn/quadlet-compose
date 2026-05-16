@@ -1,9 +1,8 @@
 """compose exec command — execute a command in a running service container."""
 
-import subprocess
-
 from rich.console import Console
 
+from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 
@@ -72,4 +71,4 @@ def compose_exec(
     if command:
         podman_args.extend(command)
 
-    subprocess.run(podman_args, check=True)
+    run_cmd(podman_args)

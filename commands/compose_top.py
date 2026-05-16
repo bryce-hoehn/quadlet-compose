@@ -1,9 +1,8 @@
 """compose top command — display running processes."""
 
-import subprocess
-
 from rich.console import Console
 
+from utils import run_cmd
 from utils.compose import get_service_info, parse_compose, resolve_compose_path
 
 
@@ -34,4 +33,4 @@ def compose_top(
         console.print("[yellow]No running containers found.[/yellow]")
         return
 
-    subprocess.run(["podman", "stats"] + containers, check=True)
+    run_cmd(["podman", "stats"] + containers)

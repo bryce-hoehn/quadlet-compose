@@ -1,9 +1,8 @@
 """compose stop command — stop containers without disabling them."""
 
-import subprocess
-
 from rich.console import Console
 
+from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 
@@ -29,4 +28,4 @@ def compose_stop(
         if timeout is not None:
             cmd.extend(["--job-mode", "replace-irreversibly"])
         console.print(f"stopping {svc}")
-        subprocess.run(cmd, check=True)
+        run_cmd(cmd)

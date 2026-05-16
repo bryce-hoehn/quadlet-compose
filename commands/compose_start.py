@@ -1,9 +1,8 @@
 """compose start command — start containers without daemon-reload."""
 
-import subprocess
-
 from rich.console import Console
 
+from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 
@@ -28,7 +27,4 @@ def compose_start(
     # Start all services
     for svc in bundle.service_names():
         console.print(f"starting {svc}")
-        subprocess.run(
-            ["systemctl", "--user", "start", svc],
-            check=True,
-        )
+        run_cmd(["systemctl", "--user", "start", svc])

@@ -1,9 +1,8 @@
 """compose kill command — kill containers."""
 
-import subprocess
-
 from rich.console import Console
 
+from utils import run_cmd
 from utils.compose import get_service_info, parse_compose, resolve_compose_path
 
 
@@ -26,4 +25,4 @@ def compose_kill(
         kill_args = ["systemctl", "--user", "kill", unit_name]
         if signal:
             kill_args.extend(["--signal", signal])
-        subprocess.run(kill_args, check=True)
+        run_cmd(kill_args)

@@ -1,8 +1,8 @@
 """compose port command — print the public port for a port binding."""
 
-import subprocess
 from typing import Literal
 
+from utils import run_cmd
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 
@@ -43,4 +43,4 @@ def compose_port(
     if private_port is not None:
         args.append(f"{private_port}/{protocol}")
 
-    subprocess.run(args, check=True)
+    run_cmd(args)
