@@ -24,7 +24,7 @@ quadlet-compose = "quadlet_compose:main"
 
 [tool.setuptools]
 py-modules = ["quadlet_compose"]
-packages = ["commands", "models", "models.quadlet", "utils", "utils.converters", "utils.field_maps"]
+packages = ["subcommands", "models", "models.quadlet", "utils", "utils.converters", "utils.field_maps"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
