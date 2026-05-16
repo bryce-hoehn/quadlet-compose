@@ -1,7 +1,8 @@
-import os
 import shutil
 import subprocess
 from pathlib import Path
+
+from .compose import ComposeError
 
 
 def get_unit_directory() -> Path:
@@ -65,11 +66,17 @@ def run_quadlet_generator(unit_dir: Path | None = None) -> None:
     user's ``~/.config/systemd/user/`` directory so that ``systemctl --user
     daemon-reload`` can discover them.
 
-    Does nothing if the ``quadlet`` binary cannot be found.
+    Raises :class:`ComposeError` if the ``quadlet`` binary cannot be found
+    or if the generator exits with an error.
     """
+    from . import run_cmd
+
     quadlet = find_quadlet_binary()
     if quadlet is None:
-        return
+        raise ComposeError(
+            "quadlet binary not found. Install podman or add "
+            "quadlet to $PATH / ~/.config/systemd/user-generators/"
+        )
 
     if unit_dir is None:
         unit_dir = get_unit_directory()
@@ -77,7 +84,4 @@ def run_quadlet_generator(unit_dir: Path | None = None) -> None:
     output_dir = Path.home() / ".config" / "systemd" / "user"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    subprocess.run(
-        [quadlet, "--user", str(unit_dir)],
-        check=False,  # quadlet returns non-zero for warnings
-    )
+    run_cmd([quadlet, "--user", str(unit_dir)])
