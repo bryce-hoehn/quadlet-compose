@@ -1,14 +1,7 @@
 name: Regenerate Models
 
 on:
-  schedule:
-    - cron: "0 0 * * 0" # weekly on Sunday at midnight UTC
   workflow_dispatch:
-  pull_request:
-    paths:
-      - "compose-spec.json"
-      - "models/compose.py"
-      - "pyproject.toml"
 
 permissions:
   contents: write
