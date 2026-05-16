@@ -1,4 +1,4 @@
-import shutil
+import json
 import subprocess
 from pathlib import Path
 
@@ -18,44 +18,27 @@ def get_unit_directory() -> Path:
 def find_quadlet_binary() -> str | None:
     """Locate the ``quadlet`` binary shipped with Podman.
 
-    Searches in order:
-      1. ``podman --q <path>`` to ask podman where quadlet lives
-      2. ``quadlet`` on ``$PATH``
-      3. Common libexec paths (``/usr/libexec/podman/quadlet``,
-         ``/usr/lib/podman/quadlet``)
-
     Returns the absolute path as a string, or *None* if not found.
     """
-    # Ask podman directly
+
     try:
         result = subprocess.run(
-            ["podman", "info", "--format", "{{.PodmanLibexecDir}}"],
+            ["podman", "info", "--format", "json"],
             capture_output=True,
             text=True,
             check=True,
         )
-        libexec = result.stdout.strip()
-        if libexec:
+        info = json.loads(result.stdout)
+        # Derive libexec dir from the network backend path which
+        # lives alongside quadlet (e.g. /usr/libexec/podman/netavark).
+        net_path = info.get("host", {}).get("networkBackendInfo", {}).get("path", "")
+        if net_path:
+            libexec = str(Path(net_path).parent)
             candidate = Path(libexec) / "quadlet"
             if candidate.is_file():
                 return str(candidate)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-
-    # On PATH as 'quadlet'
-    quadlet = shutil.which("quadlet")
-    if quadlet:
-        return quadlet
-
-    # Common locations
-    for p in (
-        "/usr/libexec/podman/quadlet",
-        "/usr/lib/podman/quadlet",
-    ):
-        if Path(p).is_file():
-            return p
-
-    return None
+    except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError):
+        return None
 
 
 def run_quadlet_generator(unit_dir: Path | None = None) -> None:
