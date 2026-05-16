@@ -5,7 +5,7 @@ from rich.console import Console
 from rich.text import Text
 
 from utils import ComposeError
-from commands import (
+from subcommands import (
     compose_up,
     compose_down,
     compose_build,

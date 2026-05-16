@@ -1,5 +1,5 @@
-from .compose_stop import compose_stop
-from .compose_start import compose_start
+from .stop import compose_stop
+from .start import compose_start
 
 
 def compose_restart(

@@ -6,9 +6,9 @@ A Python-native compose→quadlet compiler that acts as a drop-in replacement fo
 
 ```
 quadlet_compose.py        # CLI entry point (argparse + rich)
-├── commands/         # One module per docker-compose command
-│   ├── compose_up.py     #   map_compose() → write quadlet files → systemctl start
-│   ├── compose_down.py   #   systemctl stop → rm quadlet files → podman pod rm
+├── subcommands/      # One module per docker-compose command
+│   ├── up.py             #   map_compose() → write quadlet files → systemctl start
+│   ├── down.py           #   systemctl stop → rm quadlet files → podman pod rm
 │   └── ...               #   build, config, convert, exec, images, kill, logs, port, ps, pull, restart, run, top, version
 ├── models/
 │   ├── compose.py        #   Auto-generated Pydantic models from compose-spec.json (via datamodel-codegen)
@@ -81,7 +81,7 @@ simple field renaming:
 - **Declarative mapping over imperative code.** Field maps (`SERVICE_FIELD_MAP`, `NETWORK_FIELD_MAP`, etc.) declare the compose→quadlet translation as data. Converter functions handle type transformations. This makes the mapping auditable, testable, and easy to extend.
 - **docker-compose parity only.** Do not implement features beyond what `docker-compose` provides. If docker-compose doesn't do it, quadlet-compose shouldn't either. New commands must map to an existing `docker-compose` subcommand.
 - **Prefer Nix tooling.** Use `nix develop` for local development, `nix flake check` for validation, and Nix store paths for CI dependencies. Avoid installing packages via `apt` when a Nix equivalent exists.
-- **Keep the surface area small.** Each `commands/*.py` module should follow the pattern: parse compose → map to quadlet → write files → call systemctl. Business logic lives in the mapping layer and systemd, not in command modules.
+- **Keep the surface area small.** Each `subcommands/*.py` module should follow the pattern: parse compose → map to quadlet → write files → call systemctl. Business logic lives in the mapping layer and systemd, not in command modules.
 
 ## Code Style
 
@@ -135,8 +135,8 @@ for filename, content in files.items():
 
 ### Adding a new compose command
 
-1. Create `commands/<command>.py` with a `compose_<command>(compose_file, **kwargs)` function
-2. Import and register it in `commands/__init__.py`
+1. Create `subcommands/<command>.py` with a `compose_<command>(compose_file, **kwargs)` function
+2. Import and register it in `subcommands/__init__.py`
 3. Add the CLI entry in `quadlet_compose.py`
 4. Add unit tests in `tests/unit/`
 
