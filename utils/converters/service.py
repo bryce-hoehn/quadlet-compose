@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from ._helpers import _as_list, _as_optional_list
+from ._helpers import _as_list, _as_optional_list, _quote_env_if_needed
 from ._duration import _parse_duration_seconds
 
 
@@ -35,13 +35,23 @@ def convert_entrypoint(value: Any) -> dict[str, Any]:
 
 
 def convert_environment(value: Any) -> dict[str, Any]:
-    """Convert compose ``environment`` to ``Environment`` lines."""
+    """Convert compose ``environment`` to ``Environment`` lines.
+
+    Values containing whitespace are quoted so that systemd preserves
+    them verbatim (e.g. ``KEY="value with spaces"``).
+    """
     if value is None:
         return {}
     if isinstance(value, dict):
-        return {"Environment": [f"{k}={v}" for k, v in value.items() if v is not None]}
+        return {
+            "Environment": [
+                _quote_env_if_needed(f"{k}={v}")
+                for k, v in value.items()
+                if v is not None
+            ],
+        }
     if isinstance(value, list):
-        return {"Environment": [str(v) for v in value]}
+        return {"Environment": [_quote_env_if_needed(str(v)) for v in value]}
     return {}
 
 

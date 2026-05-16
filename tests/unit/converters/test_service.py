@@ -223,6 +223,32 @@ class TestConvertEnvironment:
         result = convert_environment(["FOO=bar", "BAZ=qux"])
         assert result == {"Environment": ["FOO=bar", "BAZ=qux"]}
 
+    def test_dict_value_with_spaces_quoted(self) -> None:
+        result = convert_environment(
+            {"VPN_SERVICE_PROVIDER": "private internet access"}
+        )
+        assert result == {
+            "Environment": ['VPN_SERVICE_PROVIDER="private internet access"']
+        }
+
+    def test_list_value_with_spaces_quoted(self) -> None:
+        result = convert_environment(["VPN_SERVICE_PROVIDER=private internet access"])
+        assert result == {
+            "Environment": ['VPN_SERVICE_PROVIDER="private internet access"']
+        }
+
+    def test_dict_value_without_spaces_unquoted(self) -> None:
+        result = convert_environment({"FOO": "bar"})
+        assert result == {"Environment": ["FOO=bar"]}
+
+    def test_dict_value_with_embedded_quote_escaped(self) -> None:
+        result = convert_environment({"MSG": 'hello "world"'})
+        assert result == {"Environment": ['MSG="hello \\"world\\""']}
+
+    def test_dict_empty_value_unquoted(self) -> None:
+        result = convert_environment({"EMPTY": ""})
+        assert result == {"Environment": ["EMPTY="]}
+
 
 # ---------------------------------------------------------------------------
 # Ports

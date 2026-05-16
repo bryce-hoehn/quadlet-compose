@@ -8,6 +8,8 @@ so every converter here must handle ``set`` in addition to ``list`` and
 
 from typing import Any
 
+from ._helpers import _quote_env_if_needed
+
 
 def _normalize_to_list(value: set[str] | list[str]) -> list[str]:
     """Normalize a set or list to a list.
@@ -22,14 +24,23 @@ def _normalize_to_list(value: set[str] | list[str]) -> list[str]:
 def convert_list_or_dict_to_env(value: Any) -> dict[str, Any]:
     """Convert compose ``environment`` (list or dict) to ``Environment`` lines.
 
-    ``Environment=KEY=VALUE`` for quadlet container units.
+    ``Environment=KEY=VALUE`` for quadlet container units.  Values
+    containing whitespace are quoted for systemd.
     """
     if value is None:
         return {}
     if isinstance(value, dict):
-        return {"Environment": [f"{k}={v}" for k, v in value.items() if v is not None]}
+        return {
+            "Environment": [
+                _quote_env_if_needed(f"{k}={v}")
+                for k, v in value.items()
+                if v is not None
+            ],
+        }
     if isinstance(value, (list, set)):
-        return {"Environment": _normalize_to_list(value)}
+        return {
+            "Environment": [_quote_env_if_needed(s) for s in _normalize_to_list(value)]
+        }
     return {}
 
 

@@ -6,7 +6,12 @@ package for convenience::
     from converters import convert_ports, convert_healthcheck
 """
 
-from ._helpers import _as_list, _as_optional_list, _resolve_relative_path
+from ._helpers import (
+    _as_list,
+    _as_optional_list,
+    _quote_env_if_needed,
+    _resolve_relative_path,
+)
 from ._duration import _parse_duration_seconds
 from ._list_or_dict import (
     convert_list_or_dict_to_build_env,

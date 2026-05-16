@@ -36,6 +36,30 @@ class TestConvertListOrDictToEnv:
     def test_unknown_type_returns_empty(self) -> None:
         assert convert_list_or_dict_to_env(42) == {}
 
+    def test_dict_value_with_spaces_quoted(self) -> None:
+        result = convert_list_or_dict_to_env(
+            {"VPN_SERVICE_PROVIDER": "private internet access"}
+        )
+        assert result == {
+            "Environment": ['VPN_SERVICE_PROVIDER="private internet access"']
+        }
+
+    def test_list_value_with_spaces_quoted(self) -> None:
+        result = convert_list_or_dict_to_env(
+            ["VPN_SERVICE_PROVIDER=private internet access"]
+        )
+        assert result == {
+            "Environment": ['VPN_SERVICE_PROVIDER="private internet access"']
+        }
+
+    def test_dict_value_without_spaces_unquoted(self) -> None:
+        result = convert_list_or_dict_to_env({"FOO": "bar"})
+        assert result == {"Environment": ["FOO=bar"]}
+
+    def test_dict_value_with_embedded_quote_escaped(self) -> None:
+        result = convert_list_or_dict_to_env({"MSG": 'hello "world"'})
+        assert result == {"Environment": ['MSG="hello \\"world\\""']}
+
 
 class TestConvertListOrDictToLabels:
     """Tests for convert_list_or_dict_to_labels()."""

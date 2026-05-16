@@ -31,3 +31,19 @@ def _resolve_relative_path(path: str, base_dir: Path) -> str:
     if path.startswith("./") or path.startswith("../"):
         return str((base_dir / path).resolve())
     return path
+
+
+def _quote_env_if_needed(s: str) -> str:
+    """Quote a ``KEY=VALUE`` string for systemd ``Environment=`` if needed.
+
+    Systemd splits unquoted values on whitespace.  When the value
+    portion contains spaces or tabs, the entire assignment is wrapped
+    in double quotes so that systemd preserves the value verbatim.
+    """
+    if "=" not in s:
+        return s
+    _key, _, value = s.partition("=")
+    if value and any(c in value for c in (" ", "\t")):
+        escaped = value.replace('"', '\\"')
+        return f'{_key}="{escaped}"'
+    return s
