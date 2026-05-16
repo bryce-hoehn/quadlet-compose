@@ -23,6 +23,7 @@ quadlet_compose.py        # CLI entry point (argparse + rich)
 │   ├── compose.py        #   Compose file parsing (PyYAML + Pydantic validation)
 │   ├── mapping.py        #   Compose→Quadlet mapping orchestrator (QuadletBundle)
 │   ├── quadlet.py        #   ~/.config/containers/systemd path helpers
+│   ├── progress.py       #   Docker-compose v1-style TUI progress indication
 │   ├── converters/       #   Converter functions for compose→quadlet type transformations
 │   │   ├── service.py    #     Service field converters (ports, volumes, healthcheck, etc.)
 │   │   ├── build.py      #     Build field converters

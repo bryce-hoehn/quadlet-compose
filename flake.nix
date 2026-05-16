@@ -43,7 +43,7 @@
             (pkgs.lib.makeBinPath runtimeDeps)
           ];
 
-          # No tests in the repo yet
+          # Tests run via: nix develop -c pytest
           doCheck = false;
 
           meta = with pkgs.lib; {
