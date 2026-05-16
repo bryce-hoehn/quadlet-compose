@@ -47,18 +47,21 @@ def compose_pull(
         writer.add("Pulling", image)
     writer.write_initial()
 
-    for image in images:
-        args = ["podman", "pull"]
-        if quiet:
-            args.append("--quiet")
-        args.append(image)
+    try:
+        for image in images:
+            args = ["podman", "pull"]
+            if quiet:
+                args.append("--quiet")
+            args.append(image)
 
-        result = subprocess.run(args, check=False)
-        if result.returncode != 0:
-            if ignore_pull_failures:
-                writer.update("Pulling", image, "failed", color="yellow")
+            result = subprocess.run(args, check=False)
+            if result.returncode != 0:
+                if ignore_pull_failures:
+                    writer.update("Pulling", image, "failed", color="yellow")
+                else:
+                    writer.update("Pulling", image, "error", color="red")
+                    raise RuntimeError(f"Failed to pull {image}")
             else:
-                writer.update("Pulling", image, "error", color="red")
-                raise RuntimeError(f"Failed to pull {image}")
-        else:
-            writer.update("Pulling", image, "done", color="green")
+                writer.update("Pulling", image, "done", color="green")
+    finally:
+        writer.finish()
