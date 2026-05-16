@@ -8,7 +8,7 @@ from .quadlet import get_unit_directory
 def run_cmd(
     args: Sequence[str] | str,
     *,
-    check: bool = True,
+    check: bool = False,
     **kwargs: object,
 ) -> subprocess.CompletedProcess:
     """Run a subprocess command with friendly error handling.
