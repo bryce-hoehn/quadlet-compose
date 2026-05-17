@@ -246,6 +246,21 @@ class TestMapService:
         assert unit.Label is not None
         assert any("com.example=test" in lbl for lbl in unit.Label)
 
+    def test_service_with_userns_mode(self) -> None:
+        svc = Service.model_validate(
+            {
+                "image": "nginx:latest",
+                "userns_mode": "host",
+            }
+        )
+        unit = map_service(svc, service_name="web")
+        assert unit.UserNS == "host"
+
+    def test_service_without_userns_mode(self) -> None:
+        svc = Service.model_validate({"image": "nginx:latest"})
+        unit = map_service(svc, service_name="web")
+        assert unit.UserNS is None
+
 
 # ---------------------------------------------------------------------------
 # map_build

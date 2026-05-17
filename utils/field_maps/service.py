@@ -79,6 +79,7 @@ SERVICE_FIELD_MAP: list[FieldMapEntry] = [
     # -- User / Group --
     ("user", "User", convert_user),
     ("group_add", "GroupAdd", convert_group_add),
+    ("userns_mode", "UserNS", None),
     # -- Networking --
     ("extra_hosts", "AddHost", convert_extra_hosts),
     ("networks", "Network", convert_networks),
