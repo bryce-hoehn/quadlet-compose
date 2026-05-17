@@ -127,6 +127,12 @@ class TestServiceFieldMap:
         assert entries["userns_mode"][1] == "UserNS"
         assert entries["userns_mode"][2] is None  # identity mapping
 
+    def test_has_env_file_entry(self) -> None:
+        entries = {e[0]: e for e in SERVICE_FIELD_MAP}
+        assert "env_file" in entries
+        assert entries["env_file"][1] == "EnvironmentFile"
+        assert callable(entries["env_file"][2])
+
     def test_all_converters_callable(self) -> None:
         for i, entry in enumerate(SERVICE_FIELD_MAP):
             if entry[2] is not None:

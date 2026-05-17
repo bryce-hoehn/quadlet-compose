@@ -17,6 +17,7 @@ from ..converters import (
     convert_dns,
     convert_dns_search,
     convert_entrypoint,
+    convert_env_file,
     convert_expose,
     convert_extra_hosts,
     convert_group_add,
@@ -70,6 +71,7 @@ SERVICE_FIELD_MAP: list[FieldMapEntry] = [
     ("command", "Exec", convert_command),
     # -- Environment --
     ("environment", "Environment", convert_list_or_dict_to_env),
+    ("env_file", "EnvironmentFile", convert_env_file),
     # -- Ports --
     ("ports", "PublishPort", convert_ports),
     ("expose", "ExposeHostPort", convert_expose),

@@ -12,6 +12,7 @@ from utils.converters.service import (
     convert_dns,
     convert_dns_search,
     convert_entrypoint,
+    convert_env_file,
     convert_environment,
     convert_expose,
     convert_extra_hosts,
@@ -857,3 +858,39 @@ class TestConvertNetworks:
 
     def test_empty_dict(self) -> None:
         assert convert_networks({}) == {}
+
+
+# ---------------------------------------------------------------------------
+# env_file
+# ---------------------------------------------------------------------------
+
+
+class TestConvertEnvFile:
+    def test_none(self) -> None:
+        assert convert_env_file(None) == {}
+
+    def test_single_string(self) -> None:
+        result = convert_env_file(".env")
+        assert result == {"EnvironmentFile": [".env"]}
+
+    def test_list_of_strings(self) -> None:
+        result = convert_env_file([".env", "overrides.env"])
+        assert result == {"EnvironmentFile": [".env", "overrides.env"]}
+
+    def test_list_of_dicts_with_path(self) -> None:
+        """EnvFileEnvFile objects dumped to dicts by _apply_field_map."""
+        result = convert_env_file(
+            [{"path": ".env", "required": True}, {"path": "prod.env"}]
+        )
+        assert result == {"EnvironmentFile": [".env", "prod.env"]}
+
+    def test_mixed_list(self) -> None:
+        """Mix of plain strings and dict entries."""
+        result = convert_env_file([".env", {"path": "prod.env"}])
+        assert result == {"EnvironmentFile": [".env", "prod.env"]}
+
+    def test_empty_list(self) -> None:
+        assert convert_env_file([]) == {}
+
+    def test_unsupported_type(self) -> None:
+        assert convert_env_file(42) == {}

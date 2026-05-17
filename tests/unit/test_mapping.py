@@ -261,6 +261,44 @@ class TestMapService:
         unit = map_service(svc, service_name="web")
         assert unit.UserNS is None
 
+    def test_service_with_env_file_string(self) -> None:
+        svc = Service.model_validate(
+            {
+                "image": "nginx:latest",
+                "env_file": ".env",
+            }
+        )
+        unit = map_service(svc, service_name="web")
+        assert unit.EnvironmentFile == [".env"]
+
+    def test_service_with_env_file_list(self) -> None:
+        svc = Service.model_validate(
+            {
+                "image": "nginx:latest",
+                "env_file": [".env", "overrides.env"],
+            }
+        )
+        unit = map_service(svc, service_name="web")
+        assert unit.EnvironmentFile == [".env", "overrides.env"]
+
+    def test_service_with_env_file_objects(self) -> None:
+        svc = Service.model_validate(
+            {
+                "image": "nginx:latest",
+                "env_file": [
+                    {"path": ".env", "required": True},
+                    {"path": "prod.env"},
+                ],
+            }
+        )
+        unit = map_service(svc, service_name="web")
+        assert unit.EnvironmentFile == [".env", "prod.env"]
+
+    def test_service_without_env_file(self) -> None:
+        svc = Service.model_validate({"image": "nginx:latest"})
+        unit = map_service(svc, service_name="web")
+        assert unit.EnvironmentFile is None
+
 
 # ---------------------------------------------------------------------------
 # map_build
@@ -896,3 +934,51 @@ class TestMapCompose:
         bundle = map_compose(data, project_name="test", compose_path=compose_path)
         assert len(bundle.builds) == 1
         assert bundle.builds[0].SetWorkingDirectory == "/home/user/myproject/webapp"
+
+    def test_env_file_relative_path_resolution(self) -> None:
+        """Relative env_file paths are resolved against the compose file directory."""
+        data = {
+            "services": {
+                "web": {
+                    "image": "nginx:latest",
+                    "env_file": ["./envs/.env", "../shared.env"],
+                },
+            },
+        }
+        compose_path = Path("/home/user/myproject/docker-compose.yml")
+        bundle = map_compose(data, project_name="test", compose_path=compose_path)
+        container = bundle.containers[0]
+        assert container.EnvironmentFile == [
+            "/home/user/myproject/envs/.env",
+            "/home/user/shared.env",
+        ]
+
+    def test_env_file_absolute_path_unchanged(self) -> None:
+        """Absolute env_file paths are not modified."""
+        data = {
+            "services": {
+                "web": {
+                    "image": "nginx:latest",
+                    "env_file": ["/etc/app/.env"],
+                },
+            },
+        }
+        compose_path = Path("/home/user/myproject/docker-compose.yml")
+        bundle = map_compose(data, project_name="test", compose_path=compose_path)
+        container = bundle.containers[0]
+        assert container.EnvironmentFile == ["/etc/app/.env"]
+
+    def test_env_file_no_relative_path_unchanged(self) -> None:
+        """Bare filename env_file (no path prefix) is not modified."""
+        data = {
+            "services": {
+                "web": {
+                    "image": "nginx:latest",
+                    "env_file": [".env"],
+                },
+            },
+        }
+        compose_path = Path("/home/user/myproject/docker-compose.yml")
+        bundle = map_compose(data, project_name="test", compose_path=compose_path)
+        container = bundle.containers[0]
+        assert container.EnvironmentFile == [".env"]

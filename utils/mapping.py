@@ -412,6 +412,15 @@ def map_compose(
                     resolved.append(":".join(parts))
                 container.Volume = resolved
 
+            # Resolve relative paths in env_file sources against the
+            # compose file directory.  Quadlet would otherwise resolve
+            # them against ~/.config/containers/systemd/.
+            if container.EnvironmentFile:
+                container.EnvironmentFile = [
+                    _resolve_relative_path(p, compose_dir)
+                    for p in container.EnvironmentFile
+                ]
+
             # Podman requires PublishPort on the *pod*, not individual
             # containers, when containers share a pod's network
             # namespace.

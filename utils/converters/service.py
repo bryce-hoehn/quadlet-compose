@@ -451,3 +451,42 @@ def convert_networks(value: Any) -> dict[str, Any]:
     if podman_args:
         result["PodmanArgs"] = podman_args
     return result
+
+
+def convert_env_file(value: Any) -> dict[str, Any]:
+    """Convert compose ``env_file`` to ``EnvironmentFile``.
+
+    The compose-spec ``env_file`` field can be:
+    - a single path string
+    - a list of path strings and/or ``EnvFileEnvFile`` objects (with ``.path``)
+
+    Quadlet's ``EnvironmentFile`` expects a list of file paths.
+
+    Relative path resolution (``./`` / ``../``) is handled in the
+    mapping layer, not here.
+    """
+    if value is None:
+        return {}
+
+    paths: list[str] = []
+
+    if isinstance(value, str):
+        paths.append(value)
+    elif isinstance(value, list):
+        for item in value:
+            if isinstance(item, str):
+                paths.append(item)
+            elif isinstance(item, BaseModel):
+                # EnvFileEnvFile model — extract the path attribute
+                paths.append(item.path)
+            elif isinstance(item, dict):
+                # EnvFileEnvFile dumped to dict by _apply_field_map
+                if "path" in item:
+                    paths.append(item["path"])
+    else:
+        return {}
+
+    if not paths:
+        return {}
+
+    return {"EnvironmentFile": paths}
