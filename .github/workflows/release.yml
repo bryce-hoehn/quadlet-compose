@@ -60,7 +60,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pyproject.toml flake.nix flake.lock
-          git commit -m "chore: release v${{ steps.compute_version.outputs.version }}"
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: release v${{ steps.compute_version.outputs.version }}"
+          fi
           git tag -a "v${{ steps.compute_version.outputs.version }}" -m "Release v${{ steps.compute_version.outputs.version }}"
           git push
           git push --tags
