@@ -823,6 +823,47 @@ class TestMapCompose:
         for c in bundle.containers:
             assert c.PublishPort is None
 
+    def test_userns_migrated_to_pod(self) -> None:
+        """UserNS is moved from container to pod (Podman forbids it on containers in pods)."""
+        data = {
+            "services": {
+                "web": {"image": "nginx:latest", "userns_mode": "host"},
+            },
+        }
+        bundle = map_compose(data, project_name="test")
+        assert bundle.pod is not None
+        assert bundle.pod.UserNS == "host"
+        # Container should have UserNS cleared
+        for c in bundle.containers:
+            assert c.UserNS is None
+
+    def test_userns_conflict_raises_error(self) -> None:
+        """Conflicting userns_mode values across services raises ComposeError."""
+        from utils import ComposeError
+
+        data = {
+            "services": {
+                "web": {"image": "nginx:latest", "userns_mode": "host"},
+                "api": {"image": "myapi:latest", "userns_mode": "private"},
+            },
+        }
+        with pytest.raises(ComposeError, match="Conflicting userns_mode"):
+            map_compose(data, project_name="test")
+
+    def test_userns_same_value_no_error(self) -> None:
+        """Same userns_mode across services is fine — set once on the pod."""
+        data = {
+            "services": {
+                "web": {"image": "nginx:latest", "userns_mode": "host"},
+                "api": {"image": "myapi:latest", "userns_mode": "host"},
+            },
+        }
+        bundle = map_compose(data, project_name="test")
+        assert bundle.pod is not None
+        assert bundle.pod.UserNS == "host"
+        for c in bundle.containers:
+            assert c.UserNS is None
+
     def test_bind_mount_relative_path_resolution(self) -> None:
         """Relative bind mount sources are resolved against the compose file directory."""
         data = {

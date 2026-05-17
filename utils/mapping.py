@@ -434,6 +434,22 @@ def map_compose(
                         bundle.pod.PublishPort.append(port)
                 container.PublishPort = None
 
+            # Podman does not allow setting UserNS on individual
+            # containers when they join a pod with an infra container.
+            # Move UserNS from the container to the pod instead.
+            if container.UserNS and bundle.pod is not None:
+                if bundle.pod.UserNS is None:
+                    bundle.pod.UserNS = container.UserNS
+                elif bundle.pod.UserNS != container.UserNS:
+                    from utils import ComposeError
+
+                    raise ComposeError(
+                        f"Conflicting userns_mode: pod already has "
+                        f"UserNS={bundle.pod.UserNS!r}, but service "
+                        f"{svc_name!r} specifies {container.UserNS!r}"
+                    )
+                container.UserNS = None
+
             bundle.containers.append(container)
 
             # Track restart policy for compose_up to handle.
