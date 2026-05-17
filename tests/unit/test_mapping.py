@@ -141,7 +141,7 @@ class TestMapService:
         svc = Service.model_validate({"image": "nginx:latest"})
         unit = map_service(svc, service_name="web")
         assert isinstance(unit, ContainerUnit)
-        assert unit.Image == "nginx:latest"
+        assert unit.Image == "docker.io/library/nginx:latest"
         assert unit.ContainerName == "web"
 
     def test_service_with_project_name(self) -> None:
@@ -572,7 +572,7 @@ class TestMapCompose:
         assert bundle.pod is not None
         assert bundle.pod.PodName == "test"
         assert len(bundle.containers) == 1
-        assert bundle.containers[0].Image == "nginx:latest"
+        assert bundle.containers[0].Image == "docker.io/library/nginx:latest"
         assert bundle.containers[0].Pod == "test.pod"
 
     def test_compose_with_name(self) -> None:
@@ -717,8 +717,8 @@ class TestMapCompose:
         bundle = map_compose(data, project_name="test")
         assert len(bundle.containers) == 2
         images = [c.Image for c in bundle.containers]
-        assert "nginx:latest" in images
-        assert "postgres:15" in images
+        assert "docker.io/library/nginx:latest" in images
+        assert "docker.io/library/postgres:15" in images
 
     def test_compose_restart_always_adds_install(self) -> None:
         """Services with restart: always should get [Install] WantedBy."""

@@ -1,6 +1,18 @@
 """Shared fixtures for the quadlet-compose test suite."""
 
+from unittest.mock import patch
+
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _deterministic_search_registry():
+    """Ensure ``_qualify_image`` uses a deterministic registry in all tests."""
+    with patch(
+        "utils.converters.service._get_first_search_registry",
+        return_value="docker.io",
+    ):
+        yield
 
 
 @pytest.fixture

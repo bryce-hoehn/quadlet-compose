@@ -1,6 +1,9 @@
 """Converter functions for compose Service → Quadlet ContainerUnit fields."""
 
+import re
 import shlex
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
@@ -55,11 +58,92 @@ def convert_environment(value: Any) -> dict[str, Any]:
     return {}
 
 
+# ---------------------------------------------------------------------------
+# Podman registries.conf helpers
+# ---------------------------------------------------------------------------
+
+_REGISTRIES_CONF_PATHS: list[Path] = [
+    Path("~/.config/containers/registries.conf").expanduser(),
+    Path("/etc/containers/registries.conf"),
+    Path("/usr/share/containers/registries.conf"),
+]
+
+_DEFAULT_REGISTRY = "docker.io"
+
+
+@lru_cache(maxsize=1)
+def _get_first_search_registry() -> str:
+    """Return the first ``unqualified-search-registry`` from registries.conf.
+
+    Podman's ``registries.conf`` (TOML) lists registries to try when
+    resolving short image names.  We read the first one so that
+    ``_qualify_image`` uses the same registry the system is configured
+    for, falling back to ``docker.io`` when the file is missing or
+    unparseable.
+    """
+    for conf_path in _REGISTRIES_CONF_PATHS:
+        if not conf_path.is_file():
+            continue
+        try:
+            text = conf_path.read_text()
+        except OSError:
+            continue
+        # Match  unqualified-search-registries = [...]  (possibly multiline)
+        match = re.search(
+            r"unqualified-search-registries\s*=\s*\[([^\]]*)\]",
+            text,
+        )
+        if match:
+            entries = match.group(1)
+            registries = [
+                e.strip().strip('"').strip("'")
+                for e in entries.split(",")
+                if e.strip() and not e.strip().startswith("#")
+            ]
+            if registries:
+                return registries[0]
+        break  # first readable config wins
+    return _DEFAULT_REGISTRY
+
+
+def _qualify_image(image: str) -> str:
+    """Qualify a short image name using the first Podman search registry.
+
+    Podman's quadlet generator warns when image names are not fully
+    qualified (e.g. ``postgres:16-alpine`` instead of
+    ``docker.io/library/postgres:16-alpine``).  This function
+    automatically qualifies short names so the generated quadlet files
+    don't trigger those warnings.
+
+    The registry prefix is read from Podman's ``registries.conf``
+    (``unqualified-search-registries``), falling back to ``docker.io``
+    when the configuration cannot be read.
+
+    Rules:
+    * If the first path component contains a ``.`` or is ``localhost``,
+      the image is already qualified → return as-is.
+    * If the image contains ``/`` but the first component is not a
+      registry (e.g. ``getmeili/meilisearch``) → prefix with the
+      search registry.
+    * If the image has no ``/`` at all (e.g. ``postgres:16-alpine``) →
+      prefix with ``<registry>/library/``.
+    """
+    parts = image.split("/")
+    if len(parts) > 1:
+        first = parts[0]
+        if "." in first or first == "localhost":
+            return image  # Already qualified
+    registry = _get_first_search_registry()
+    if "/" in image:
+        return f"{registry}/{image}"
+    return f"{registry}/library/{image}"
+
+
 def convert_image(value: Any) -> dict[str, Any]:
-    """Convert compose ``image`` to ``Image``."""
+    """Convert compose ``image`` to ``Image``, qualifying short names."""
     if value is None:
         return {}
-    return {"Image": str(value)}
+    return {"Image": _qualify_image(str(value))}
 
 
 def convert_working_dir(value: Any) -> dict[str, Any]:

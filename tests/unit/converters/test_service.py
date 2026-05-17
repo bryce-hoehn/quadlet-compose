@@ -3,6 +3,8 @@
 import pytest
 
 from utils.converters.service import (
+    _get_first_search_registry,
+    _qualify_image,
     convert_cap_add,
     convert_cap_drop,
     convert_cgroup,
@@ -49,7 +51,107 @@ class TestConvertImage:
         assert convert_image(None) == {}
 
     def test_string(self) -> None:
-        assert convert_image("nginx:latest") == {"Image": "nginx:latest"}
+        assert convert_image("nginx:latest") == {
+            "Image": "docker.io/library/nginx:latest"
+        }
+
+    def test_already_qualified(self) -> None:
+        assert convert_image("quay.io/some/image:v1") == {
+            "Image": "quay.io/some/image:v1"
+        }
+
+
+class TestQualifyImage:
+    """Tests for the ``_qualify_image`` helper."""
+
+    def test_bare_library_image(self) -> None:
+        assert _qualify_image("nginx:latest") == "docker.io/library/nginx:latest"
+
+    def test_bare_image_no_tag(self) -> None:
+        assert _qualify_image("postgres") == "docker.io/library/postgres"
+
+    def test_user_image(self) -> None:
+        assert _qualify_image("getmeili/meilisearch:v1.12.8") == (
+            "docker.io/getmeili/meilisearch:v1.12.8"
+        )
+
+    def test_already_qualified_registry(self) -> None:
+        assert _qualify_image("quay.io/some/image:v1") == "quay.io/some/image:v1"
+
+    def test_localhost_prefix(self) -> None:
+        assert _qualify_image("localhost/myimage:latest") == (
+            "localhost/myimage:latest"
+        )
+
+    def test_custom_registry_with_port(self) -> None:
+        assert _qualify_image("myregistry.example.com:5000/app:v2") == (
+            "myregistry.example.com:5000/app:v2"
+        )
+
+    def test_image_with_digest(self) -> None:
+        assert _qualify_image("ubuntu@sha256:abc123") == (
+            "docker.io/library/ubuntu@sha256:abc123"
+        )
+
+
+class TestGetFirstSearchRegistry:
+    """Tests for reading the first search registry from registries.conf."""
+
+    def test_reads_first_registry(self, tmp_path, monkeypatch) -> None:
+        from utils.converters import service as svc_mod
+
+        conf = tmp_path / "registries.conf"
+        conf.write_text(
+            'unqualified-search-registries = ["mirror.local", "docker.io"]\n'
+        )
+        monkeypatch.setattr(svc_mod, "_REGISTRIES_CONF_PATHS", [conf])
+        # Clear lru_cache
+        _get_first_search_registry.cache_clear()
+        try:
+            assert _get_first_search_registry() == "mirror.local"
+        finally:
+            _get_first_search_registry.cache_clear()
+
+    def test_multiline_array(self, tmp_path, monkeypatch) -> None:
+        from utils.converters import service as svc_mod
+
+        conf = tmp_path / "registries.conf"
+        conf.write_text(
+            "unqualified-search-registries = [\n"
+            '  "registry.fedoraproject.org",\n'
+            '  "docker.io",\n'
+            "]\n"
+        )
+        monkeypatch.setattr(svc_mod, "_REGISTRIES_CONF_PATHS", [conf])
+        _get_first_search_registry.cache_clear()
+        try:
+            assert _get_first_search_registry() == "registry.fedoraproject.org"
+        finally:
+            _get_first_search_registry.cache_clear()
+
+    def test_missing_file_falls_back(self, tmp_path, monkeypatch) -> None:
+        from utils.converters import service as svc_mod
+
+        monkeypatch.setattr(
+            svc_mod, "_REGISTRIES_CONF_PATHS", [tmp_path / "nonexistent.conf"]
+        )
+        _get_first_search_registry.cache_clear()
+        try:
+            assert _get_first_search_registry() == "docker.io"
+        finally:
+            _get_first_search_registry.cache_clear()
+
+    def test_empty_array_falls_back(self, tmp_path, monkeypatch) -> None:
+        from utils.converters import service as svc_mod
+
+        conf = tmp_path / "registries.conf"
+        conf.write_text("unqualified-search-registries = []\n")
+        monkeypatch.setattr(svc_mod, "_REGISTRIES_CONF_PATHS", [conf])
+        _get_first_search_registry.cache_clear()
+        try:
+            assert _get_first_search_registry() == "docker.io"
+        finally:
+            _get_first_search_registry.cache_clear()
 
 
 class TestConvertContainerName:
