@@ -231,10 +231,10 @@ class TestMapService:
         assert unit.Volume == ["data:/data"]
 
     def test_service_no_image_no_build(self) -> None:
-        """When no image and no build, service_name is qualified as Image."""
+        """When no image and no build, service_name gets localhost/ prefix."""
         svc = Service.model_validate({})
         unit = map_service(svc, service_name="web")
-        assert unit.Image == "docker.io/library/web"
+        assert unit.Image == "localhost/web"
 
     def test_service_with_labels(self) -> None:
         svc = Service.model_validate(
@@ -313,12 +313,12 @@ class TestMapBuild:
         build = ServiceBuild.model_validate({"context": "."})
         unit = map_build(build, service_name="web")
         assert isinstance(unit, BuildUnit)
-        assert unit.ImageTag == "docker.io/library/web"
+        assert unit.ImageTag == "localhost/web"
 
     def test_build_with_project_name(self) -> None:
         build = ServiceBuild.model_validate({"context": "."})
         unit = map_build(build, service_name="web", project_name="myapp")
-        assert unit.ImageTag == "docker.io/library/myapp-web"
+        assert unit.ImageTag == "localhost/myapp-web"
 
     def test_build_with_dockerfile(self) -> None:
         build = ServiceBuild.model_validate(
@@ -621,7 +621,7 @@ class TestMapCompose:
         }
         bundle = map_compose(data, project_name="test")
         assert len(bundle.builds) == 1
-        assert bundle.builds[0].ImageTag == "docker.io/library/test-web"
+        assert bundle.builds[0].ImageTag == "localhost/test-web"
 
     def test_compose_with_build_string(self) -> None:
         """build: can be a plain string (shorthand for context)."""
