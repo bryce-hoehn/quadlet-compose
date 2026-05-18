@@ -112,6 +112,7 @@ class ProgressWriter:
         self._lock = Lock()
         self._spinner_thread: Thread | None = None
         self._stop_event = Event()
+        self._spinner_drew: bool = False
         try:
             self._term_width = shutil.get_terminal_size().columns or 80
         except (ValueError, OSError):
@@ -158,6 +159,11 @@ class ProgressWriter:
 
         self._stop_spinner()
         with self._lock:
+            # If the spinner drew frames, the cursor is one line below
+            # the spinner line — move back up before writing the final
+            # line so it replaces the spinner in-place.
+            if self._spinner_drew:
+                self._stream.write("\033[1A")  # cursor up
             icon = _status_icon(status, color)
             status_colored = _colorize(status, color)
             elapsed_str = _format_elapsed(elapsed)
@@ -167,6 +173,7 @@ class ProgressWriter:
             self._stream.write(_clear_line())
             self._stream.write(f'{label}{" " * padding}{right}\n')
             self._stream.flush()
+            self._spinner_drew = False
 
         # Advance to the next item
         idx = self._labels.index(label)
@@ -198,12 +205,21 @@ class ProgressWriter:
 
     def _spin(self, label: str) -> None:
         i = 0
+        first = True
         while not self._stop_event.is_set():
             frame = _SPINNER_FRAMES[i % len(_SPINNER_FRAMES)]
             with self._lock:
+                if first:
+                    first = False
+                else:
+                    # Move cursor back up to the spinner line.
+                    self._stream.write("\033[1A")
                 self._stream.write(_clear_line())
-                self._stream.write(f"{frame} {label}\r")
+                # Write spinner frame + newline so the cursor rests
+                # on the line *below* the spinner (docker-compose parity).
+                self._stream.write(f"{frame} {label}\n")
                 self._stream.flush()
+                self._spinner_drew = True
             i += 1
             self._stop_event.wait(_SPINNER_INTERVAL)
 

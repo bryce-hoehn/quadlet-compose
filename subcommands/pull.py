@@ -99,7 +99,11 @@ def compose_pull(
                 args.append("--quiet")
             args.append(image)
 
-            result = subprocess.run(args, check=False)
+            # Capture output to prevent podman progress from
+            # overwriting the spinner line on the terminal.
+            result = subprocess.run(
+                args, capture_output=True, check=False,
+            )
             if result.returncode != 0:
                 if ignore_pull_failures:
                     writer.update("Pulling", image, "failed", color="yellow")
