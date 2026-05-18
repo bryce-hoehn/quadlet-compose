@@ -344,14 +344,15 @@ def compose_up(
         lambda f: (unit_dir / f).write_text(quadlet_files[f]),
     )
 
-    # Run the Quadlet generator directly to produce .service files,
-    # scoped to only this project's quadlet files.
-    run_quadlet_generator(unit_dir, files=list(quadlet_files))
-
-    # Restart changed services: daemon-reload so systemd picks up the
-    # new .service files, then restart only the units that changed.
-    if changed_services:
+    # Run the Quadlet generator and reload systemd only when files
+    # actually changed — the generator processes ALL quadlet files in
+    # the user's search paths so we avoid unnecessary runs.
+    if changed_services or new_services:
+        run_quadlet_generator()
         run_cmd(["systemctl", "--user", "daemon-reload"])
+
+    # Restart changed services.
+    if changed_services:
         track_operation(
             "Restarting",
             changed_services,
