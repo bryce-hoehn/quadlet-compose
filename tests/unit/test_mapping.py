@@ -30,7 +30,7 @@ from utils.field_maps import (
 from utils.mapping import (
     QuadletBundle,
     _apply_field_map,
-    _with_hash_label,
+    _render_with_hash,
     map_build,
     map_compose,
     map_network,
@@ -1027,35 +1027,64 @@ class TestMapCompose:
 
 
 # ---------------------------------------------------------------------------
-# _with_hash_label / hash label in to_quadlet_files
+# _render_with_hash / hash label in to_quadlet_files
 # ---------------------------------------------------------------------------
 
 
-class TestWithHashLabel:
-    """Tests for the _with_hash_label helper and hash label in to_quadlet_files."""
+class TestRenderWithHash:
+    """Tests for the _render_with_hash helper and hash label in to_quadlet_files."""
 
-    def test_appends_hash_label(self) -> None:
-        content = "[Container]\nImage=nginx:latest"
-        result = _with_hash_label(content)
+    def test_includes_hash_label(self) -> None:
+        unit = ContainerUnit(Image="nginx:latest", ContainerName="web")
+        result = _render_with_hash(unit)
         assert "Label=io.quadlet-compose.hash=" in result
 
     def test_hash_is_deterministic(self) -> None:
-        content = "[Container]\nImage=nginx:latest"
-        assert _with_hash_label(content) == _with_hash_label(content)
+        unit = ContainerUnit(Image="nginx:latest", ContainerName="web")
+        result_a = _render_with_hash(unit)
+        result_b = _render_with_hash(unit)
+        assert result_a == result_b
 
     def test_hash_changes_with_content(self) -> None:
-        content_a = "[Container]\nImage=nginx:latest"
-        content_b = "[Container]\nImage=postgres:15"
-        assert _with_hash_label(content_a) != _with_hash_label(content_b)
+        unit_a = ContainerUnit(Image="nginx:latest", ContainerName="web")
+        unit_b = ContainerUnit(Image="postgres:15", ContainerName="db")
+        result_a = _render_with_hash(unit_a)
+        result_b = _render_with_hash(unit_b)
+        assert result_a != result_b
 
     def test_hash_is_64_char_hex(self) -> None:
-        content = "[Container]\nImage=nginx:latest"
-        result = _with_hash_label(content)
+        unit = ContainerUnit(Image="nginx:latest", ContainerName="web")
+        result = _render_with_hash(unit)
         prefix = "Label=io.quadlet-compose.hash="
         hash_line = [l for l in result.splitlines() if l.startswith(prefix)][0]
         digest = hash_line[len(prefix) :]
         assert len(digest) == 64
         assert all(c in "0123456789abcdef" for c in digest)
+
+    def test_hash_label_in_container_section_not_install(self) -> None:
+        """Hash label must appear in [Container], not in [Install]."""
+        unit = ContainerUnit(
+            Image="nginx:latest",
+            ContainerName="web",
+            install={"WantedBy": "default.target"},
+        )
+        result = _render_with_hash(unit)
+        lines = result.splitlines()
+        in_install = False
+        hash_in_install = False
+        hash_in_container = False
+        for line in lines:
+            if line == "[Install]":
+                in_install = True
+            elif line.startswith("["):
+                in_install = False
+            if line.startswith("Label=io.quadlet-compose.hash="):
+                if in_install:
+                    hash_in_install = True
+                else:
+                    hash_in_container = True
+        assert hash_in_container, "Hash label should be in [Container] section"
+        assert not hash_in_install, "Hash label must NOT be in [Install] section"
 
     def test_to_quadlet_files_includes_hash(self) -> None:
         bundle = QuadletBundle(
@@ -1065,11 +1094,12 @@ class TestWithHashLabel:
         content = files["web.container"]
         assert "Label=io.quadlet-compose.hash=" in content
 
-    def test_to_quadlet_files_hash_matches_with_hash_label(self) -> None:
-        """The hash in to_quadlet_files output matches _with_hash_label."""
-        bundle = QuadletBundle(
-            containers=[ContainerUnit(Image="nginx:latest", ContainerName="web")],
-        )
+    def test_to_quadlet_files_hash_matches_render_with_hash(self) -> None:
+        """The hash in to_quadlet_files output matches _render_with_hash."""
+        unit = ContainerUnit(Image="nginx:latest", ContainerName="web")
+        bundle = QuadletBundle(containers=[unit])
         files = bundle.to_quadlet_files()
-        raw = bundle.containers[0].to_quadlet()
-        assert files["web.container"] == _with_hash_label(raw)
+        # _render_with_hash was already called by to_quadlet_files, so
+        # the unit now has the hash label.  Re-rendering should produce
+        # the same result (idempotent).
+        assert files["web.container"] == _render_with_hash(unit)

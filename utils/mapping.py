@@ -224,17 +224,35 @@ def map_volume(
 # Helpers
 # ---------------------------------------------------------------------------
 
-_HASH_LABEL_PREFIX = "Label=io.quadlet-compose.hash="
+_HASH_LABEL_KEY = "io.quadlet-compose.hash"
 
 
-def _with_hash_label(content: str) -> str:
-    """Append a content-hash label to quadlet file content.
+def _render_with_hash(
+    unit: PodUnit | ContainerUnit | NetworkUnit | VolumeUnit | BuildUnit,
+) -> str:
+    """Render a quadlet unit with a content-hash label in its ``Label`` field.
 
-    The SHA-256 digest is computed from *content* **before** the label
-    is appended, so the hash is deterministic across runs.
+    The SHA-256 digest is computed from the unit rendered **without**
+    the hash label, then the label is appended to ``unit.Label`` and
+    the unit is re-rendered.  Because the label is added to the model's
+    ``Label`` field, :meth:`to_quadlet` places it in the correct INI
+    section (e.g. ``[Container]``) rather than in ``[Install]``.
+
+    The function is idempotent: any existing hash labels are stripped
+    before computing the digest so repeated calls produce the same
+    result.
     """
-    digest = sha256(content.encode()).hexdigest()
-    return f"{content}\n{_HASH_LABEL_PREFIX}{digest}"
+    # Strip any prior hash labels so the digest is stable.
+    if unit.Label:
+        unit.Label = [l for l in unit.Label if not l.startswith(_HASH_LABEL_KEY)]
+    # Compute digest from content without the hash label.
+    digest = sha256(unit.to_quadlet().encode()).hexdigest()
+    hash_label = f"{_HASH_LABEL_KEY}={digest}"
+    if unit.Label is None:
+        unit.Label = [hash_label]
+    else:
+        unit.Label.append(hash_label)
+    return unit.to_quadlet()
 
 
 # ---------------------------------------------------------------------------
@@ -330,19 +348,19 @@ class QuadletBundle:
         files: dict[str, str] = {}
         if self.pod is not None:
             name = self.pod.PodName or "pod"
-            files[f"{name}.pod"] = _with_hash_label(self.pod.to_quadlet())
+            files[f"{name}.pod"] = _render_with_hash(self.pod)
         for unit in self.containers:
             name = unit.ContainerName or "container"
-            files[f"{name}.container"] = _with_hash_label(unit.to_quadlet())
+            files[f"{name}.container"] = _render_with_hash(unit)
         for unit in self.networks:
             name = unit.NetworkName or "network"
-            files[f"{name}.network"] = _with_hash_label(unit.to_quadlet())
+            files[f"{name}.network"] = _render_with_hash(unit)
         for unit in self.volumes:
             name = unit.VolumeName or "volume"
-            files[f"{name}.volume"] = _with_hash_label(unit.to_quadlet())
+            files[f"{name}.volume"] = _render_with_hash(unit)
         for unit in self.builds:
             tag = unit.ImageTag or "build"
-            files[f"{tag}.build"] = _with_hash_label(unit.to_quadlet())
+            files[f"{tag}.build"] = _render_with_hash(unit)
         return files
 
 
