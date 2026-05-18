@@ -401,14 +401,16 @@ def map_compose(
                 pod_name=pod_service_name,
             )
 
-            # Resolve relative paths in volume sources against the
-            # compose file directory.  Named volumes never have relative
-            # sources, so only entries with ./ or ../ prefixes need this.
+            # Resolve relative bind-mount paths in volume sources against
+            # the compose file directory.  Named volumes (bare names
+            # without ``./`` or ``../`` prefixes) must NOT be resolved.
             if container.Volume:
                 resolved: list[str] = []
                 for vol in container.Volume:
                     parts = vol.split(":", 2)
-                    parts[0] = _resolve_relative_path(parts[0], compose_dir)
+                    src = parts[0]
+                    if src.startswith("./") or src.startswith("../"):
+                        parts[0] = _resolve_relative_path(src, compose_dir)
                     resolved.append(":".join(parts))
                 container.Volume = resolved
 

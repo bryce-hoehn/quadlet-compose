@@ -24,13 +24,14 @@ def _as_optional_list(value: Any) -> list[str] | None:
 
 
 def _resolve_relative_path(path: str, base_dir: Path) -> str:
-    """Resolve a relative path against *base_dir* if it starts with ``./`` or ``../``.
+    """Resolve *path* against *base_dir* using :meth:`~pathlib.Path.resolve`.
 
-    Absolute paths and non-path values are returned unchanged.
+    Absolute paths are returned unchanged.  All relative paths (including
+    bare filenames like ``.env``) are resolved against *base_dir*.
     """
-    if path.startswith("./") or path.startswith("../"):
-        return str((base_dir / path).resolve())
-    return path
+    if Path(path).is_absolute():
+        return path
+    return str((base_dir / path).resolve())
 
 
 def _quote_env_if_needed(s: str) -> str:

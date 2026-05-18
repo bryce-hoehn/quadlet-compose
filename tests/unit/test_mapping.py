@@ -1009,8 +1009,8 @@ class TestMapCompose:
         container = bundle.containers[0]
         assert container.EnvironmentFile == ["/etc/app/.env"]
 
-    def test_env_file_no_relative_path_unchanged(self) -> None:
-        """Bare filename env_file (no path prefix) is not modified."""
+    def test_env_file_bare_filename_resolved(self) -> None:
+        """Bare filename env_file (no path prefix) is resolved to absolute."""
         data = {
             "services": {
                 "web": {
@@ -1022,4 +1022,4 @@ class TestMapCompose:
         compose_path = Path("/home/user/myproject/docker-compose.yml")
         bundle = map_compose(data, project_name="test", compose_path=compose_path)
         container = bundle.containers[0]
-        assert container.EnvironmentFile == [".env"]
+        assert container.EnvironmentFile == ["/home/user/myproject/.env"]
