@@ -533,7 +533,8 @@ def map_compose(
             )
             bundle.networks.append(network_unit)
 
-    # Map volumes
+    # Map volumes and build compose-name → .volume-filename mapping
+    volume_unit_map: dict[str, str] = {}
     volumes = compose_data.get("volumes", {})
     if volumes:
         for vol_name, vol in volumes.items():
@@ -549,6 +550,27 @@ def map_compose(
                 project_name=project_name,
             )
             bundle.volumes.append(volume_unit)
+            # Record mapping so containers can reference the .volume file.
+            vol_filename = volume_unit.VolumeName or vol_name
+            volume_unit_map[vol_name] = f"{vol_filename}.volume"
+
+    # Rewrite container Volume= entries so named volumes reference the
+    # corresponding .volume unit file (e.g. "data:/var/lib/mysql" →
+    # "myapp-data.volume:/var/lib/mysql").  This lets the Quadlet
+    # generator create the proper systemd dependency and resolve the
+    # actual VolumeName from the volume unit.
+    if volume_unit_map:
+        for container in bundle.containers:
+            if not container.Volume:
+                continue
+            rewritten: list[str] = []
+            for vol in container.Volume:
+                parts = vol.split(":", 2)
+                src = parts[0]
+                if src in volume_unit_map:
+                    parts[0] = volume_unit_map[src]
+                rewritten.append(":".join(parts))
+            container.Volume = rewritten
 
     bundle._tag(project_name)
 

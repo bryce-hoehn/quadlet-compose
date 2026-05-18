@@ -1103,3 +1103,145 @@ class TestRenderWithHash:
         # the unit now has the hash label.  Re-rendering should produce
         # the same result (idempotent).
         assert files["web.container"] == _render_with_hash(unit)
+
+
+# ---------------------------------------------------------------------------
+# Named volume → .volume unit file referencing
+# ---------------------------------------------------------------------------
+
+
+class TestNamedVolumeReferencing:
+    """Tests for rewriting container Volume= to reference .volume unit files."""
+
+    def test_named_volume_references_volume_file(self) -> None:
+        """A named volume in a service should reference the .volume unit file."""
+        compose = {
+            'name': 'myapp',
+            'services': {
+                'db': {
+                    'image': 'postgres:15',
+                    'volumes': ['dbdata:/var/lib/postgresql/data'],
+                },
+            },
+            'volumes': {
+                'dbdata': {},
+            },
+        }
+        bundle = map_compose(compose)
+        container = bundle.containers[0]
+
+        # The container should reference the .volume file, not the raw name
+        assert container.Volume is not None
+        assert any(
+            v.startswith('myapp-dbdata.volume:') for v in container.Volume
+        ), f"Expected .volume reference, got: {container.Volume}"
+
+    def test_named_volume_unit_created(self) -> None:
+        """A .volume unit file should be created for declared volumes."""
+        compose = {
+            'name': 'myapp',
+            'services': {
+                'db': {
+                    'image': 'postgres:15',
+                    'volumes': ['dbdata:/var/lib/postgresql/data'],
+                },
+            },
+            'volumes': {
+                'dbdata': {},
+            },
+        }
+        bundle = map_compose(compose)
+        assert len(bundle.volumes) == 1
+        assert bundle.volumes[0].VolumeName == 'myapp-dbdata'
+
+    def test_bind_mount_not_rewritten(self) -> None:
+        """Bind mounts should NOT be rewritten to .volume references."""
+        compose = {
+            'name': 'myapp',
+            'services': {
+                'web': {
+                    'image': 'nginx:latest',
+                    'volumes': ['./html:/usr/share/nginx/html:ro'],
+                },
+            },
+        }
+        bundle = map_compose(compose)
+        container = bundle.containers[0]
+
+        assert container.Volume is not None
+        # Bind mount should keep its original source (resolved to absolute)
+        assert any(
+            '/html:/usr/share/nginx/html:ro' in v for v in container.Volume
+        ), f"Bind mount should not be rewritten, got: {container.Volume}"
+
+    def test_external_volume_not_rewritten(self) -> None:
+        """External volumes should NOT create .volume files or rewrite references."""
+        compose = {
+            'name': 'myapp',
+            'services': {
+                'db': {
+                    'image': 'postgres:15',
+                    'volumes': ['ext_data:/var/lib/postgresql/data'],
+                },
+            },
+            'volumes': {
+                'ext_data': {'external': True},
+            },
+        }
+        bundle = map_compose(compose)
+        container = bundle.containers[0]
+
+        # No volume unit should be created for external volumes
+        assert len(bundle.volumes) == 0
+
+        # Container should keep the raw volume name (not rewritten)
+        assert container.Volume is not None
+        assert any(
+            v.startswith('ext_data:') for v in container.Volume
+        ), f"External volume should not be rewritten, got: {container.Volume}"
+
+    def test_undeclared_volume_not_rewritten(self) -> None:
+        """A volume used in a service but not in top-level volumes: should not be rewritten."""
+        compose = {
+            'name': 'myapp',
+            'services': {
+                'db': {
+                    'image': 'postgres:15',
+                    'volumes': ['auto_data:/var/lib/postgresql/data'],
+                },
+            },
+        }
+        bundle = map_compose(compose)
+        container = bundle.containers[0]
+
+        # No volume unit created (not declared in top-level volumes)
+        assert len(bundle.volumes) == 0
+
+        # Container keeps the raw name (Podman will auto-create)
+        assert container.Volume is not None
+        assert any(
+            v.startswith('auto_data:') for v in container.Volume
+        ), f"Undeclared volume should not be rewritten, got: {container.Volume}"
+
+    def test_volume_reference_in_quadlet_files(self) -> None:
+        """The generated .container file should contain the .volume reference."""
+        compose = {
+            'name': 'myapp',
+            'services': {
+                'db': {
+                    'image': 'postgres:15',
+                    'volumes': ['dbdata:/var/lib/postgresql/data'],
+                },
+            },
+            'volumes': {
+                'dbdata': {},
+            },
+        }
+        bundle = map_compose(compose)
+        files = bundle.to_quadlet_files()
+
+        container_content = files['myapp-db.container']
+        assert 'Volume=myapp-dbdata.volume:/var/lib/postgresql/data' in container_content
+
+        # The .volume file should also exist
+        assert 'myapp-dbdata.volume' in files
