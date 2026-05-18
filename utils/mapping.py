@@ -23,6 +23,7 @@ from models.quadlet.pod import PodUnit
 from models.quadlet.volume import VolumeUnit
 
 from .converters._helpers import _resolve_relative_path
+from .converters.service import _qualify_image
 from .field_maps import (
     BUILD_FIELD_MAP,
     NETWORK_FIELD_MAP,
@@ -115,9 +116,9 @@ def map_service(
         else:
             # No explicit image — use project-prefixed service name.
             # For build services this matches the BuildUnit.ImageTag.
-            kwargs["Image"] = (
-                f"{project_name}-{service_name}" if project_name else service_name
-            )
+            # Qualify to avoid quadlet generator warnings.
+            raw = f"{project_name}-{service_name}" if project_name else service_name
+            kwargs["Image"] = _qualify_image(raw)
 
     # Assign to pod if provided
     if pod_name:
@@ -152,10 +153,11 @@ def map_build(
     """
     kwargs = _apply_field_map(build, BUILD_FIELD_MAP)
 
-    # Set ImageTag if not provided
+    # Set ImageTag if not provided — qualify to match the ContainerUnit
+    # Image and avoid quadlet generator short-name warnings.
     if "ImageTag" not in kwargs:
-        tag = f"{project_name}-{service_name}" if project_name else service_name
-        kwargs["ImageTag"] = tag
+        raw = f"{project_name}-{service_name}" if project_name else service_name
+        kwargs["ImageTag"] = _qualify_image(raw)
 
     return BuildUnit(**kwargs)
 
