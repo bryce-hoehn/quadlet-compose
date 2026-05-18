@@ -4,6 +4,7 @@ Compose-spec → Quadlet unit mapping layer
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from hashlib import sha256
 from typing import Any, Callable, TypeVar
 from pathlib import Path
 
@@ -218,6 +219,23 @@ def map_volume(
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_HASH_LABEL_PREFIX = "Label=io.quadlet-compose.hash="
+
+
+def _with_hash_label(content: str) -> str:
+    """Append a content-hash label to quadlet file content.
+
+    The SHA-256 digest is computed from *content* **before** the label
+    is appended, so the hash is deterministic across runs.
+    """
+    digest = sha256(content.encode()).hexdigest()
+    return f"{content}\n{_HASH_LABEL_PREFIX}{digest}"
+
+
+# ---------------------------------------------------------------------------
 # QuadletBundle — orchestrator output
 # ---------------------------------------------------------------------------
 
@@ -301,25 +319,28 @@ class QuadletBundle:
     def to_quadlet_files(self) -> dict[str, str]:
         """Render all units to their quadlet file contents.
 
+        Each file includes a ``Label=io.quadlet-compose.hash=<sha256>``
+        line for change detection by ``compose up``.
+
         Returns:
             Dict mapping ``filename`` → ``quadlet file content``.
         """
         files: dict[str, str] = {}
         if self.pod is not None:
             name = self.pod.PodName or "pod"
-            files[f"{name}.pod"] = self.pod.to_quadlet()
+            files[f"{name}.pod"] = _with_hash_label(self.pod.to_quadlet())
         for unit in self.containers:
             name = unit.ContainerName or "container"
-            files[f"{name}.container"] = unit.to_quadlet()
+            files[f"{name}.container"] = _with_hash_label(unit.to_quadlet())
         for unit in self.networks:
             name = unit.NetworkName or "network"
-            files[f"{name}.network"] = unit.to_quadlet()
+            files[f"{name}.network"] = _with_hash_label(unit.to_quadlet())
         for unit in self.volumes:
             name = unit.VolumeName or "volume"
-            files[f"{name}.volume"] = unit.to_quadlet()
+            files[f"{name}.volume"] = _with_hash_label(unit.to_quadlet())
         for unit in self.builds:
             tag = unit.ImageTag or "build"
-            files[f"{tag}.build"] = unit.to_quadlet()
+            files[f"{tag}.build"] = _with_hash_label(unit.to_quadlet())
         return files
 
 

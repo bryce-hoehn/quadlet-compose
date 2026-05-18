@@ -6,6 +6,7 @@ from typing import Literal
 from rich.console import Console
 
 from utils import run_cmd
+from utils._helpers import extract_hash, quadlet_to_service
 from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 from utils.progress import track_operation
@@ -317,12 +318,24 @@ def compose_up(
         for path in _find_project_files(unit_dir, bundle.project_name):
             if path.name in current_filenames:
                 continue
-            # Quadlet → systemd: {stem}.{ext} → {stem}.service
-            stem = path.name.rsplit(".", 1)[0]
-            svc = f"{stem}.service"
+            svc = quadlet_to_service(path.name)
             console.print(f"removing orphan {path.name}")
             run_cmd(["systemctl", "--user", "stop", svc])
             path.unlink()
+
+    # Detect changes by comparing hash labels in existing files with new ones.
+    changed_services: list[str] = []
+    new_services: list[str] = []
+    for filename, content in quadlet_files.items():
+        existing_path = unit_dir / filename
+        svc = quadlet_to_service(filename)
+        if not existing_path.exists():
+            new_services.append(svc)
+        else:
+            existing_hash = extract_hash(existing_path.read_text())
+            new_hash = extract_hash(content)
+            if existing_hash != new_hash:
+                changed_services.append(svc)
 
     # Write quadlet files directly to the unit directory
     track_operation(
@@ -335,12 +348,20 @@ def compose_up(
     # scoped to only this project's quadlet files.
     run_quadlet_generator(unit_dir, files=list(quadlet_files))
 
-    # Reload systemd so it discovers the newly generated units
-    run_cmd(["systemctl", "--user", "daemon-reload"])
+    # Restart changed services: daemon-reload so systemd picks up the
+    # new .service files, then restart only the units that changed.
+    if changed_services:
+        run_cmd(["systemctl", "--user", "daemon-reload"])
+        track_operation(
+            "Restarting",
+            changed_services,
+            lambda svc: run_cmd(["systemctl", "--user", "restart", svc]),
+        )
 
-    # Start all current services
-    track_operation(
-        "Starting",
-        list(bundle.service_names()),
-        lambda svc: run_cmd(["systemctl", "--user", "start", svc]),
-    )
+    # Start new services (unchanged services are already running).
+    if new_services:
+        track_operation(
+            "Starting",
+            new_services,
+            lambda svc: run_cmd(["systemctl", "--user", "start", svc]),
+        )
