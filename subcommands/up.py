@@ -348,6 +348,9 @@ def compose_up(
 
     run_quadlet_generator()
 
+    # Reload systemd so it picks up the newly generated units
+    run_cmd(["systemctl", "--user", "daemon-reload"])
+
     # Restart changed services.
     if changed_services:
         track_operation(
