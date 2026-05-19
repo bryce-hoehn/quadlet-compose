@@ -1,6 +1,5 @@
 """compose down command — stop and remove containers."""
 
-import subprocess
 from pathlib import Path
 from typing import Literal
 
@@ -121,7 +120,7 @@ def compose_down(
         track_operation(
             "Removing image",
             images,
-            lambda img: subprocess.run(["podman", "rmi", img], check=False),
+            lambda img: run_cmd(f"podman rmi {img}"),
         )
 
     # Remove named volumes if requested
@@ -130,10 +129,7 @@ def compose_down(
         track_operation(
             "Removing volume",
             vol_names,
-            lambda vol: subprocess.run(
-                ["podman", "volume", "rm", vol],
-                check=False,
-            ),
+            lambda vol: run_cmd(f"podman volume rm {vol}"),
         )
 
     # Remove quadlet files

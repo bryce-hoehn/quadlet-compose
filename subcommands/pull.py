@@ -1,7 +1,5 @@
 """compose pull command — pull service images."""
 
-import subprocess
-
 from rich.console import Console
 from typing import Literal
 from utils import run_cmd
@@ -94,16 +92,14 @@ def compose_pull(
 
     try:
         for image in images:
-            args = ["podman", "pull"]
+            cmd = "podman pull"
             if quiet:
-                args.append("--quiet")
-            args.append(image)
+                cmd += " --quiet"
+            cmd += image
 
             # Capture output to prevent podman progress from
             # overwriting the spinner line on the terminal.
-            result = subprocess.run(
-                args, capture_output=True, check=False,
-            )
+            result = run_cmd(cmd)
             if result.returncode != 0:
                 if ignore_pull_failures:
                     writer.update("Pulling", image, "failed", color="yellow")
