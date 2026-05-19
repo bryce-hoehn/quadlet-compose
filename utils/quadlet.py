@@ -2,8 +2,6 @@ import json
 import subprocess
 from pathlib import Path
 
-from utils import run_cmd
-
 from .compose import ComposeError
 
 
@@ -23,8 +21,10 @@ def find_quadlet_binary() -> str | None:
     Returns the absolute path as a string, or *None* if not found.
     """
 
+    from utils import run_cmd
+
     try:
-        result = run_cmd("podman info --format json")
+        result = run_cmd(["podman", "info", "--format", "json"])
         info = json.loads(result.stdout)
         # Derive libexec dir from the network backend path which
         # lives alongside quadlet (e.g. /usr/libexec/podman/netavark).
