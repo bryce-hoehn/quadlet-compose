@@ -12,6 +12,8 @@ from utils.mapping import map_compose
 from utils.progress import track_operation
 from utils.quadlet import get_unit_directory, run_quadlet_generator
 
+from .logs import compose_logs
+
 HELP = "Create and start containers"
 ARGS = [
     (
@@ -344,13 +346,6 @@ def compose_up(
         lambda f: (unit_dir / f).write_text(quadlet_files[f]),
     )
 
-    # Run the Quadlet generator and reload systemd only when files
-    # actually changed — the generator processes ALL quadlet files in
-    # the user's search paths so we avoid unnecessary runs.
-    if changed_services or new_services:
-        run_quadlet_generator()
-        run_cmd(["systemctl", "--user", "daemon-reload"])
-
     # Restart changed services.
     if changed_services:
         track_operation(
@@ -359,10 +354,13 @@ def compose_up(
             lambda svc: run_cmd(["systemctl", "--user", "restart", svc]),
         )
 
-    # Start new services (unchanged services are already running).
+    # Start new services.
     if new_services:
         track_operation(
             "Starting",
             new_services,
             lambda svc: run_cmd(["systemctl", "--user", "start", svc]),
         )
+
+    if not detach:
+        compose_logs()
