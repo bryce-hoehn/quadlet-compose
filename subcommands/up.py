@@ -346,6 +346,8 @@ def compose_up(
         lambda f: (unit_dir / f).write_text(quadlet_files[f]),
     )
 
+    run_quadlet_generator()
+
     # Restart changed services.
     if changed_services:
         track_operation(
