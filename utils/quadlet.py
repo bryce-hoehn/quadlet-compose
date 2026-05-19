@@ -24,7 +24,11 @@ def find_quadlet_binary() -> str | None:
     from utils import run_cmd
 
     try:
-        result = run_cmd(["podman", "info", "--format", "json"])
+        result = run_cmd(
+            ["podman", "info", "--format", "json"],
+            capture_output=True,
+            text=True,
+        )
         info = json.loads(result.stdout)
         # Derive libexec dir from the network backend path which
         # lives alongside quadlet (e.g. /usr/libexec/podman/netavark).
