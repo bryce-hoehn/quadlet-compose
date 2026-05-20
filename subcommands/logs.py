@@ -1,6 +1,6 @@
 """compose logs command — view output from containers."""
 
-from utils import run_cmd
+from utils import ComposeError, run_cmd
 from utils.compose import get_service_info, parse_compose, resolve_compose_path
 
 HELP = "View output from containers"
@@ -71,7 +71,14 @@ def compose_logs(
     timestamps: bool = False,
     until: str | int | None = None,
 ) -> None:
-    """View output from containers."""
+    """View output from containers.
+
+    When the containers exist in Podman, ``podman logs`` is used
+    directly.  If the containers have not been created (e.g. the
+    service failed to start), the function falls back to
+    ``journalctl --user`` for the corresponding systemd units so the
+    user can still see startup / error output.
+    """
 
     compose_path = resolve_compose_path(compose_file)
     compose = parse_compose(compose_path)
@@ -94,4 +101,22 @@ def compose_logs(
         args.extend(["--until", str(until)])
 
     args.extend(containers)
-    run_cmd(args)
+
+    try:
+        run_cmd(args)
+    except ComposeError:
+        # Containers may not exist (e.g. failed to start).  Fall back
+        # to journalctl so the user can still see systemd / podman
+        # output for the service.
+        journal_args = ["journalctl", "--user"]
+        for container_name in containers:
+            journal_args.extend(["-u", f"{container_name}.service"])
+        if follow:
+            journal_args.append("-f")
+        if since is not None:
+            journal_args.extend(["--since", str(since)])
+        if tail is not None:
+            journal_args.extend(["--lines", str(tail)])
+        if until is not None:
+            journal_args.extend(["--until", str(until)])
+        run_cmd(journal_args)
