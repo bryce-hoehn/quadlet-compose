@@ -316,3 +316,28 @@ class TestComposeLogsJournalctlFallback:
 
         assert mock_run.call_count == 1
         assert mock_run.call_args[0][0][0] == "podman"
+
+    @patch("subcommands.logs.run_cmd")
+    @patch("subcommands.logs.get_service_info")
+    @patch("subcommands.logs.parse_compose")
+    @patch("subcommands.logs.resolve_compose_path")
+    def test_podman_logs_called_with_check_true(
+        self,
+        mock_resolve: MagicMock,
+        mock_parse: MagicMock,
+        mock_info: MagicMock,
+        mock_run: MagicMock,
+    ) -> None:
+        """podman logs must be called with check=True so failures raise."""
+        from subcommands.logs import compose_logs
+
+        mock_resolve.return_value = Path("/fake/compose.yml")
+        mock_parse.return_value = {}
+        mock_info.return_value = ServiceInfo(
+            container_names={"web": "myapp-web-1"},
+        )
+
+        compose_logs()
+
+        first_call = mock_run.call_args_list[0]
+        assert first_call[1].get("check") is True

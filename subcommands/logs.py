@@ -107,7 +107,7 @@ def compose_logs(
     args.extend(containers)
 
     try:
-        run_cmd(args)
+        run_cmd(args, check=True)
     except ComposeError:
         # Containers may not exist (e.g. failed to start).  Fall back
         # to journalctl so the user can still see systemd / podman

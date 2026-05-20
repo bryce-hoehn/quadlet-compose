@@ -1,7 +1,6 @@
 """Tests for utils/_helpers.py helpers and subcommands/up.py."""
 
-from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from models.quadlet.container import ContainerUnit
 from utils._helpers import extract_hash, quadlet_to_service
@@ -87,7 +86,13 @@ class TestExtractHash:
 
 
 class TestEnsureBindMountDirs:
-    """Tests for _ensure_bind_mount_dirs in subcommands/up.py."""
+    """Tests for _ensure_bind_mount_dirs in subcommands/up.py.
+
+    Uses mocked ``Path`` with Unix-style absolute paths so the tests
+    work correctly on Windows (where ``C:\\path`` colons would collide
+    with the volume ``src:target`` split and ``Path.is_absolute()``
+    behaves differently).
+    """
 
     @staticmethod
     def _make_container(volumes: list[str] | None) -> ContainerUnit:
@@ -98,33 +103,50 @@ class TestEnsureBindMountDirs:
             Volume=volumes,
         )
 
-    def test_creates_missing_directory(self, tmp_path: Path) -> None:
-        bind_src = tmp_path / "data"
-        container = self._make_container([f"{bind_src}:/app/data"])
+    @patch("subcommands.up.Path")
+    def test_creates_missing_directory(self, mock_path_cls: MagicMock) -> None:
+        """Creates a missing bind mount source directory."""
+        mock_path = MagicMock()
+        mock_path.is_absolute.return_value = True
+        mock_path.exists.return_value = False
+        mock_path.suffix = ""
+        mock_path_cls.return_value = mock_path
+
+        container = self._make_container(["/tmp/testdata/data:/app/data"])
         bundle = QuadletBundle(containers=[container])
 
         from subcommands.up import _ensure_bind_mount_dirs
 
         _ensure_bind_mount_dirs(bundle)
 
-        assert bind_src.is_dir()
+        mock_path.mkdir.assert_called_once_with(parents=True, exist_ok=True)
 
-    def test_creates_parent_for_file_like_path(self, tmp_path: Path) -> None:
-        """Paths with a suffix (e.g. .env, .yml) are treated as file targets."""
-        bind_src = tmp_path / "config" / "app.yml"
-        container = self._make_container([f"{bind_src}:/app/config.yml"])
+    @patch("subcommands.up.Path")
+    def test_creates_parent_for_file_like_path(self, mock_path_cls: MagicMock) -> None:
+        """Paths with a suffix (e.g. .yml) only create the parent directory."""
+        mock_path = MagicMock()
+        mock_path.is_absolute.return_value = True
+        mock_path.exists.return_value = False
+        mock_path.suffix = ".yml"
+        mock_path_cls.return_value = mock_path
+
+        container = self._make_container(["/opt/config/app.yml:/app/config.yml"])
         bundle = QuadletBundle(containers=[container])
 
         from subcommands.up import _ensure_bind_mount_dirs
 
         _ensure_bind_mount_dirs(bundle)
 
-        # Parent directory should exist, but the file itself should NOT.
-        assert bind_src.parent.is_dir()
-        assert not bind_src.exists()
+        mock_path.parent.mkdir.assert_called_once_with(parents=True, exist_ok=True)
+        mock_path.mkdir.assert_not_called()
 
-    def test_skips_named_volumes(self, tmp_path: Path) -> None:
-        """Named volumes (no leading ``/``) are not created on the host."""
+    @patch("subcommands.up.Path")
+    def test_skips_named_volumes(self, mock_path_cls: MagicMock) -> None:
+        """Named volumes (bare names) are not created on the host."""
+        mock_path = MagicMock()
+        mock_path.is_absolute.return_value = False
+        mock_path_cls.return_value = mock_path
+
         container = self._make_container(["mydata:/app/data"])
         bundle = QuadletBundle(containers=[container])
 
@@ -132,21 +154,24 @@ class TestEnsureBindMountDirs:
 
         _ensure_bind_mount_dirs(bundle)
 
-        # Nothing to assert — just ensure no exception or file creation.
-        assert not (tmp_path / "mydata").exists()
+        mock_path.mkdir.assert_not_called()
 
-    def test_skips_existing_paths(self, tmp_path: Path) -> None:
-        bind_src = tmp_path / "already_exists"
-        bind_src.mkdir()
-        container = self._make_container([f"{bind_src}:/app/data"])
+    @patch("subcommands.up.Path")
+    def test_skips_existing_paths(self, mock_path_cls: MagicMock) -> None:
+        """Existing directories are left as-is (no mkdir call)."""
+        mock_path = MagicMock()
+        mock_path.is_absolute.return_value = True
+        mock_path.exists.return_value = True
+        mock_path_cls.return_value = mock_path
+
+        container = self._make_container(["/tmp/already_exists:/app/data"])
         bundle = QuadletBundle(containers=[container])
 
         from subcommands.up import _ensure_bind_mount_dirs
 
         _ensure_bind_mount_dirs(bundle)
 
-        # Directory already existed; no error.
-        assert bind_src.is_dir()
+        mock_path.mkdir.assert_not_called()
 
     def test_handles_none_volume(self) -> None:
         """Containers with Volume=None should be silently skipped."""
@@ -155,7 +180,9 @@ class TestEnsureBindMountDirs:
 
         from subcommands.up import _ensure_bind_mount_dirs
 
-        _ensure_bind_mount_dirs(bundle)  # should not raise
+        with patch("subcommands.up.Path") as mock_path_cls:
+            _ensure_bind_mount_dirs(bundle)
+            mock_path_cls.assert_not_called()
 
     def test_handles_empty_volume_list(self) -> None:
         """Containers with an empty Volume list should be silently skipped."""
@@ -164,28 +191,43 @@ class TestEnsureBindMountDirs:
 
         from subcommands.up import _ensure_bind_mount_dirs
 
-        _ensure_bind_mount_dirs(bundle)  # should not raise
+        with patch("subcommands.up.Path") as mock_path_cls:
+            _ensure_bind_mount_dirs(bundle)
+            mock_path_cls.assert_not_called()
 
-    def test_creates_nested_directories(self, tmp_path: Path) -> None:
+    @patch("subcommands.up.Path")
+    def test_creates_nested_directories(self, mock_path_cls: MagicMock) -> None:
         """Deeply nested bind mount paths are created with parents=True."""
-        bind_src = tmp_path / "a" / "b" / "c" / "data"
-        container = self._make_container([f"{bind_src}:/app/data"])
+        mock_path = MagicMock()
+        mock_path.is_absolute.return_value = True
+        mock_path.exists.return_value = False
+        mock_path.suffix = ""
+        mock_path_cls.return_value = mock_path
+
+        container = self._make_container(["/deep/nested/path/data:/app/data"])
         bundle = QuadletBundle(containers=[container])
 
         from subcommands.up import _ensure_bind_mount_dirs
 
         _ensure_bind_mount_dirs(bundle)
 
-        assert bind_src.is_dir()
+        mock_path.mkdir.assert_called_once_with(parents=True, exist_ok=True)
 
-    def test_mixed_volumes(self, tmp_path: Path) -> None:
+    @patch("subcommands.up.Path")
+    def test_mixed_volumes(self, mock_path_cls: MagicMock) -> None:
         """Bind mounts are created; named volumes are skipped."""
-        bind_src = tmp_path / "host_data"
+        bind_mock = MagicMock()
+        bind_mock.is_absolute.return_value = True
+        bind_mock.exists.return_value = False
+        bind_mock.suffix = ""
+
+        named_mock = MagicMock()
+        named_mock.is_absolute.return_value = False
+
+        mock_path_cls.side_effect = [bind_mock, named_mock]
+
         container = self._make_container(
-            [
-                f"{bind_src}:/app/data",
-                "named_vol:/app/vol",
-            ]
+            ["/tmp/host_data:/app/data", "named_vol:/app/vol"]
         )
         bundle = QuadletBundle(containers=[container])
 
@@ -193,16 +235,28 @@ class TestEnsureBindMountDirs:
 
         _ensure_bind_mount_dirs(bundle)
 
-        assert bind_src.is_dir()
+        bind_mock.mkdir.assert_called_once_with(parents=True, exist_ok=True)
+        named_mock.mkdir.assert_not_called()
 
-    def test_multiple_containers(self, tmp_path: Path) -> None:
+    @patch("subcommands.up.Path")
+    def test_multiple_containers(self, mock_path_cls: MagicMock) -> None:
         """All containers in the bundle are processed."""
-        src_a = tmp_path / "data_a"
-        src_b = tmp_path / "data_b"
+        mock_a = MagicMock()
+        mock_a.is_absolute.return_value = True
+        mock_a.exists.return_value = False
+        mock_a.suffix = ""
+
+        mock_b = MagicMock()
+        mock_b.is_absolute.return_value = True
+        mock_b.exists.return_value = False
+        mock_b.suffix = ""
+
+        mock_path_cls.side_effect = [mock_a, mock_b]
+
         bundle = QuadletBundle(
             containers=[
-                self._make_container([f"{src_a}:/a"]),
-                self._make_container([f"{src_b}:/b"]),
+                self._make_container(["/data/a:/a"]),
+                self._make_container(["/data/b:/b"]),
             ]
         )
 
@@ -210,5 +264,5 @@ class TestEnsureBindMountDirs:
 
         _ensure_bind_mount_dirs(bundle)
 
-        assert src_a.is_dir()
-        assert src_b.is_dir()
+        mock_a.mkdir.assert_called_once_with(parents=True, exist_ok=True)
+        mock_b.mkdir.assert_called_once_with(parents=True, exist_ok=True)

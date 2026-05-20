@@ -270,10 +270,11 @@ def _ensure_bind_mount_dirs(bundle: "QuadletBundle") -> None:
         for vol in container.Volume:
             parts = vol.split(":", 2)
             src = parts[0]
-            # Only process absolute paths (bind mounts after resolution).
-            if not src.startswith("/"):
-                continue
             src_path = Path(src)
+            # Only process absolute paths (bind mounts after resolution).
+            # Named volumes are bare names and never absolute.
+            if not src_path.is_absolute():
+                continue
             if src_path.exists():
                 continue
             # Heuristic: if the basename has a file-like suffix (e.g.
