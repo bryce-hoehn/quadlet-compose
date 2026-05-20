@@ -82,6 +82,10 @@ def compose_logs(
 
     args = ["podman", "logs"]
 
+    if not no_log_prefix:
+        args.append("--names")
+    if not no_color:
+        args.append("--color")
     if follow:
         args.append("--follow")
     if since is not None:
@@ -94,4 +98,7 @@ def compose_logs(
         args.extend(["--until", str(until)])
 
     args.extend(containers)
-    run_cmd(args)
+    try:
+        run_cmd(args)
+    except KeyboardInterrupt:
+        pass

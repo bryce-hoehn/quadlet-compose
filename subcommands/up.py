@@ -384,4 +384,7 @@ def compose_up(
         )
 
     if not detach:
-        compose_logs()
+        try:
+            compose_logs(follow=True)
+        except KeyboardInterrupt:
+            pass
