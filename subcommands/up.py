@@ -339,18 +339,21 @@ def compose_up(
             if existing_hash != new_hash:
                 changed_services.append(svc)
 
-    # When the pod is being (re)started it auto-starts its containers.
-    # Exclude container services to avoid double-starting them.
+    # When the pod is being restarted, containers with PartOf=<pod>
+    # are restarted too via systemd propagation.  Exclude container
+    # services from the restart list to avoid double-restarting them.
+    # However, starting the pod does NOT auto-start new containers
+    # (that requires systemctl enable + WantedBy=), so new container
+    # services must still be started explicitly.
     pod_svc: str | None = None
     container_svcs: set[str] = set()
     for filename in quadlet_files:
-        if filename.endswith('.pod'):
+        if filename.endswith(".pod"):
             pod_svc = quadlet_to_service(filename)
-        elif filename.endswith('.container'):
+        elif filename.endswith(".container"):
             container_svcs.add(quadlet_to_service(filename))
-    if pod_svc and pod_svc in set(changed_services) | set(new_services):
+    if pod_svc and pod_svc in changed_services:
         changed_services = [s for s in changed_services if s not in container_svcs]
-        new_services = [s for s in new_services if s not in container_svcs]
 
     # Write quadlet files directly to the unit directory
     track_operation(
