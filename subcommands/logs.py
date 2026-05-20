@@ -114,7 +114,7 @@ def compose_logs(
         # output for the service.
         journal_args = ["journalctl", "--user"]
         for container_name in containers:
-            journal_args.extend(["-u", f"{container_name}.service"])
+            journal_args.extend(["-eu", f"{container_name}.service"])
         if follow:
             journal_args.append("-f")
         if since is not None:
