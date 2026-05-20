@@ -33,7 +33,7 @@ ARGS = [
     ),
     (
         "--since",
-        {"default": 0, "help": "Show logs since timestamp or relative time"},
+        {"default": None, "help": "Show logs since timestamp or relative time"},
     ),
     (
         "--tail",
@@ -54,7 +54,7 @@ ARGS = [
     ),
     (
         "--until",
-        {"default": 0, "help": "Show logs before timestamp or relative time"},
+        {"default": None, "help": "Show logs before timestamp or relative time"},
     ),
 ]
 
