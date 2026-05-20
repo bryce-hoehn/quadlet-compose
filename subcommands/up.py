@@ -314,7 +314,7 @@ def _follow_logs_interactive(*, compose_path: Path) -> None:
     """Follow container logs with keyboard detach support.
 
     Displays a persistent hint on the last terminal row using a scroll
-    region.  Press Ctrl+C or Ctrl+D to detach — containers keep running
+    region.  Press Ctrl+D to detach — containers keep running
     because they are managed by systemd.
     """
     from utils.compose import get_service_info, parse_compose
@@ -329,7 +329,7 @@ def _follow_logs_interactive(*, compose_path: Path) -> None:
 
     if is_tty:
         _cols, rows = shutil.get_terminal_size()
-        hint = ' \033[2mpress Ctrl+C to detach\033[0m'
+        hint = ' \033[2mpress Ctrl+D to detach\033[0m'
         # Save cursor, set scroll region to rows 1..(rows-1), write hint on
         # the last row, then restore cursor so podman output resumes from
         # the current position (right after the progress lines).
@@ -359,17 +359,6 @@ def _follow_logs_interactive(*, compose_path: Path) -> None:
     except KeyboardInterrupt:
         # Ctrl+C in cbreak mode still generates SIGINT.
         proc.terminate()
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
-        if is_tty:
-            # Reset scroll region and clear the hint line.
-            sys.stdout.write('\033[r\033[K')
-            sys.stdout.flush()
 
 
 def compose_up(
