@@ -252,6 +252,39 @@ QUADLET_EXTENSIONS = frozenset(
 PROJECT_LABEL_PREFIX = "io.quadlet-compose.project="
 
 
+def _ensure_bind_mount_dirs(bundle: "QuadletBundle") -> None:
+    """Create bind mount source directories that don't yet exist.
+
+    Iterates over every container in *bundle* and inspects its
+    ``Volume`` entries.  For each bind mount source (absolute host
+    path), the directory — or its parent if the path looks like a file
+    target — is created with ``parents=True``.
+
+    Named volumes (bare names without a leading ``/``) are skipped.
+    """
+    from utils.mapping import QuadletBundle  # noqa: F811 (re-import for type)
+
+    for container in bundle.containers:
+        if not container.Volume:
+            continue
+        for vol in container.Volume:
+            parts = vol.split(":", 2)
+            src = parts[0]
+            # Only process absolute paths (bind mounts after resolution).
+            if not src.startswith("/"):
+                continue
+            src_path = Path(src)
+            if src_path.exists():
+                continue
+            # Heuristic: if the basename has a file-like suffix (e.g.
+            # ``.yml``, ``.conf``), only create the parent directory —
+            # not the file itself.
+            if src_path.suffix:
+                src_path.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                src_path.mkdir(parents=True, exist_ok=True)
+
+
 def _find_project_files(
     unit_dir: Path,
     project_name: str,
@@ -310,6 +343,12 @@ def compose_up(
     compose = parse_compose(compose_path)
 
     bundle = map_compose(compose, compose_path=compose_path)
+
+    # Auto-create bind mount source directories before generating quadlet
+    # files and starting services.  This matches docker-compose behaviour
+    # which creates host directories for bind mounts that don't exist.
+    _ensure_bind_mount_dirs(bundle)
+
     quadlet_files = bundle.to_quadlet_files()
 
     unit_dir = get_unit_directory()
@@ -344,9 +383,9 @@ def compose_up(
     pod_svc: str | None = None
     container_svcs: set[str] = set()
     for filename in quadlet_files:
-        if filename.endswith('.pod'):
+        if filename.endswith(".pod"):
             pod_svc = quadlet_to_service(filename)
-        elif filename.endswith('.container'):
+        elif filename.endswith(".container"):
             container_svcs.add(quadlet_to_service(filename))
     if pod_svc and pod_svc in set(changed_services) | set(new_services):
         changed_services = [s for s in changed_services if s not in container_svcs]

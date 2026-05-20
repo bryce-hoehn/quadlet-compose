@@ -1,6 +1,11 @@
-"""Tests for utils/_helpers.py helpers."""
+"""Tests for utils/_helpers.py helpers and subcommands/up.py."""
 
+from pathlib import Path
+from unittest.mock import patch
+
+from models.quadlet.container import ContainerUnit
 from utils._helpers import extract_hash, quadlet_to_service
+from utils.mapping import QuadletBundle
 
 
 # ---------------------------------------------------------------------------
@@ -74,3 +79,136 @@ class TestExtractHash:
             "Label=io.quadlet-compose.hash=deadbeef"
         )
         assert extract_hash(content) == "deadbeef"
+
+
+# ---------------------------------------------------------------------------
+# _ensure_bind_mount_dirs
+# ---------------------------------------------------------------------------
+
+
+class TestEnsureBindMountDirs:
+    """Tests for _ensure_bind_mount_dirs in subcommands/up.py."""
+
+    @staticmethod
+    def _make_container(volumes: list[str] | None) -> ContainerUnit:
+        """Build a minimal ContainerUnit with the given Volume entries."""
+        return ContainerUnit(
+            Image="nginx:latest",
+            ContainerName="test-web",
+            Volume=volumes,
+        )
+
+    def test_creates_missing_directory(self, tmp_path: Path) -> None:
+        bind_src = tmp_path / "data"
+        container = self._make_container([f"{bind_src}:/app/data"])
+        bundle = QuadletBundle(containers=[container])
+
+        from subcommands.up import _ensure_bind_mount_dirs
+
+        _ensure_bind_mount_dirs(bundle)
+
+        assert bind_src.is_dir()
+
+    def test_creates_parent_for_file_like_path(self, tmp_path: Path) -> None:
+        """Paths with a suffix (e.g. .env, .yml) are treated as file targets."""
+        bind_src = tmp_path / "config" / "app.yml"
+        container = self._make_container([f"{bind_src}:/app/config.yml"])
+        bundle = QuadletBundle(containers=[container])
+
+        from subcommands.up import _ensure_bind_mount_dirs
+
+        _ensure_bind_mount_dirs(bundle)
+
+        # Parent directory should exist, but the file itself should NOT.
+        assert bind_src.parent.is_dir()
+        assert not bind_src.exists()
+
+    def test_skips_named_volumes(self, tmp_path: Path) -> None:
+        """Named volumes (no leading ``/``) are not created on the host."""
+        container = self._make_container(["mydata:/app/data"])
+        bundle = QuadletBundle(containers=[container])
+
+        from subcommands.up import _ensure_bind_mount_dirs
+
+        _ensure_bind_mount_dirs(bundle)
+
+        # Nothing to assert — just ensure no exception or file creation.
+        assert not (tmp_path / "mydata").exists()
+
+    def test_skips_existing_paths(self, tmp_path: Path) -> None:
+        bind_src = tmp_path / "already_exists"
+        bind_src.mkdir()
+        container = self._make_container([f"{bind_src}:/app/data"])
+        bundle = QuadletBundle(containers=[container])
+
+        from subcommands.up import _ensure_bind_mount_dirs
+
+        _ensure_bind_mount_dirs(bundle)
+
+        # Directory already existed; no error.
+        assert bind_src.is_dir()
+
+    def test_handles_none_volume(self) -> None:
+        """Containers with Volume=None should be silently skipped."""
+        container = self._make_container(None)
+        bundle = QuadletBundle(containers=[container])
+
+        from subcommands.up import _ensure_bind_mount_dirs
+
+        _ensure_bind_mount_dirs(bundle)  # should not raise
+
+    def test_handles_empty_volume_list(self) -> None:
+        """Containers with an empty Volume list should be silently skipped."""
+        container = self._make_container([])
+        bundle = QuadletBundle(containers=[container])
+
+        from subcommands.up import _ensure_bind_mount_dirs
+
+        _ensure_bind_mount_dirs(bundle)  # should not raise
+
+    def test_creates_nested_directories(self, tmp_path: Path) -> None:
+        """Deeply nested bind mount paths are created with parents=True."""
+        bind_src = tmp_path / "a" / "b" / "c" / "data"
+        container = self._make_container([f"{bind_src}:/app/data"])
+        bundle = QuadletBundle(containers=[container])
+
+        from subcommands.up import _ensure_bind_mount_dirs
+
+        _ensure_bind_mount_dirs(bundle)
+
+        assert bind_src.is_dir()
+
+    def test_mixed_volumes(self, tmp_path: Path) -> None:
+        """Bind mounts are created; named volumes are skipped."""
+        bind_src = tmp_path / "host_data"
+        container = self._make_container(
+            [
+                f"{bind_src}:/app/data",
+                "named_vol:/app/vol",
+            ]
+        )
+        bundle = QuadletBundle(containers=[container])
+
+        from subcommands.up import _ensure_bind_mount_dirs
+
+        _ensure_bind_mount_dirs(bundle)
+
+        assert bind_src.is_dir()
+
+    def test_multiple_containers(self, tmp_path: Path) -> None:
+        """All containers in the bundle are processed."""
+        src_a = tmp_path / "data_a"
+        src_b = tmp_path / "data_b"
+        bundle = QuadletBundle(
+            containers=[
+                self._make_container([f"{src_a}:/a"]),
+                self._make_container([f"{src_b}:/b"]),
+            ]
+        )
+
+        from subcommands.up import _ensure_bind_mount_dirs
+
+        _ensure_bind_mount_dirs(bundle)
+
+        assert src_a.is_dir()
+        assert src_b.is_dir()
