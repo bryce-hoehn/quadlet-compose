@@ -89,6 +89,10 @@ def compose_logs(
 
     args = ["podman", "logs"]
 
+    if not no_log_prefix:
+        args.append("--names")
+    if not no_color:
+        args.append("--color")
     if follow:
         args.append("--follow")
     if since is not None:
