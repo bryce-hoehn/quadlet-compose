@@ -112,7 +112,7 @@ def compose_logs(
         # Containers may not exist (e.g. failed to start).  Fall back
         # to journalctl so the user can still see systemd / podman
         # output for the service.
-        journal_args = ["journalctl", "--user"]
+        journal_args = ["journalctl", "--user", "--no-pager"]
         for container_name in containers:
             journal_args.extend(["-eu", f"{container_name}.service"])
         if follow:
