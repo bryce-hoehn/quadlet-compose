@@ -99,7 +99,7 @@ def compose_pull(
 
             # Capture output to prevent podman progress from
             # overwriting the spinner line on the terminal.
-            result = run_cmd(cmd)
+            result = run_cmd(cmd, capture_output=True)
             if result.returncode != 0:
                 if ignore_pull_failures:
                     writer.update("Pulling", image, "failed", color="yellow")
