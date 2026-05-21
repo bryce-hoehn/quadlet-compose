@@ -92,7 +92,7 @@ def compose_pull(
 
     try:
         for image in images:
-            cmd = "podman pull"
+            cmd = "podman pull "
             if quiet:
                 cmd += " --quiet"
             cmd += image
