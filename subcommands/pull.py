@@ -92,10 +92,10 @@ def compose_pull(
 
     try:
         for image in images:
-            cmd = "podman pull "
+            cmd = ["podman", "pull"]
             if quiet:
-                cmd += " --quiet"
-            cmd += image
+                cmd.append("--quiet")
+            cmd.append(image)
 
             # Capture output to prevent podman progress from
             # overwriting the spinner line on the terminal.
