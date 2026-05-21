@@ -1,12 +1,5 @@
 """compose up command — create and start containers via quadlet."""
 
-import os
-import select
-import shutil
-import subprocess
-import sys
-import termios
-import tty
 from pathlib import Path
 from typing import Literal
 
@@ -18,6 +11,8 @@ from utils.compose import parse_compose, resolve_compose_path
 from utils.mapping import map_compose
 from utils.progress import track_operation
 from utils.quadlet import get_unit_directory, run_quadlet_generator
+
+from .logs import compose_logs
 
 HELP = "Create and start containers"
 ARGS = [
@@ -310,57 +305,6 @@ def _find_project_files(
     return files
 
 
-def _follow_logs_interactive(*, compose_path: Path) -> None:
-    """Follow container logs with keyboard detach support.
-
-    Displays a persistent hint on the last terminal row using a scroll
-    region.  Press Ctrl+D to detach — containers keep running
-    because they are managed by systemd.
-    """
-    from utils.compose import get_service_info, parse_compose
-
-    compose = parse_compose(compose_path)
-    info = get_service_info(compose, compose_path=compose_path)
-    containers = list(info.container_names.values())
-
-    args = ['podman', 'logs', '--follow', '--names', '--color', *containers]
-
-    is_tty = sys.stdin.isatty() and sys.stdout.isatty()
-
-    if is_tty:
-        _cols, rows = shutil.get_terminal_size()
-        hint = ' \033[2mpress Ctrl+D to detach\033[0m'
-        # Save cursor, set scroll region to rows 1..(rows-1), write hint on
-        # the last row, then restore cursor so podman output resumes from
-        # the current position (right after the progress lines).
-        sys.stdout.write('\033[s')                        # save cursor
-        sys.stdout.write(f'\033[1;{rows - 1}r')           # scroll region
-        sys.stdout.write(f'\033[{rows};1H\033[2K{hint}')  # hint on last row
-        sys.stdout.write('\033[u')                        # restore cursor
-        sys.stdout.flush()
-
-    proc = subprocess.Popen(args)
-
-    if not is_tty:
-        proc.wait()
-        return
-
-    fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-    try:
-        tty.setcbreak(fd)
-        while proc.poll() is None:
-            ready, _, _ = select.select([fd], [], [], 0.5)
-            if ready:
-                ch = os.read(fd, 1)
-                if not ch or ch == b'\x04':  # EOF / Ctrl+D
-                    proc.terminate()
-                    break
-    except KeyboardInterrupt:
-        # Ctrl+C in cbreak mode still generates SIGINT.
-        proc.terminate()
-
-
 def compose_up(
     *,
     compose_file: str | None = None,
@@ -480,4 +424,7 @@ def compose_up(
         )
 
     if not detach:
-        _follow_logs_interactive(compose_path=compose_path)
+        try:
+            compose_logs(follow=True)
+        except KeyboardInterrupt:
+            pass
