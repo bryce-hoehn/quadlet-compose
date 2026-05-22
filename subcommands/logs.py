@@ -1,7 +1,6 @@
 """compose logs command — view output from containers."""
 
 import json
-import subprocess
 from datetime import datetime, timezone
 
 from rich.console import Console
@@ -65,100 +64,6 @@ ARGS = [
 ]
 
 
-def _format_journal_line(
-    line: str,
-    *,
-    no_log_prefix: bool = False,
-    timestamps: bool = False,
-    console: Console,
-) -> None:
-    """Parse a single ``journalctl --output=json`` line and print it."""
-    line = line.strip()
-    if not line:
-        return
-
-    try:
-        entry = json.loads(line)
-    except json.JSONDecodeError:
-        console.print(line, highlight=False)
-        return
-
-    message = entry.get("MESSAGE", "")
-    if not message:
-        return
-
-    if isinstance(message, list):
-        message = bytes(b & 0xFF for b in message).decode(
-            "utf-8",
-            errors="replace",
-        )
-
-    parts: list[str] = []
-
-    if timestamps:
-        ts_raw = entry.get("__REALTIME_TIMESTAMP")
-        if ts_raw:
-            ts_us = int(ts_raw)
-            ts = datetime.fromtimestamp(ts_us / 1_000_000, tz=timezone.utc)
-            parts.append(
-                ts.strftime("%Y-%m-%dT%H:%M:%S") + f".{ts.microsecond:06d}Z",
-            )
-
-    if not no_log_prefix:
-        unit = entry.get(
-            "_SYSTEMD_UNIT",
-            entry.get("SYSLOG_IDENTIFIER", ""),
-        )
-        prefix = unit.removesuffix(".service") if unit else ""
-        parts.append(f"{prefix} |")
-
-    console.print(" ".join(parts) + (" " if parts else "") + message, highlight=False)
-
-
-def _run_journalctl_json(
-    journal_args: list[str],
-    *,
-    follow: bool = False,
-    no_color: bool = False,
-    no_log_prefix: bool = False,
-    timestamps: bool = False,
-) -> None:
-    """Run ``journalctl --output=json`` and format entries in Python."""
-    console = Console(no_color=no_color)
-    args = journal_args + ["--output=json"]
-
-    if follow:
-        proc = subprocess.Popen(
-            args,
-            stdout=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-        )
-        try:
-            if proc.stdout is not None:
-                for line in proc.stdout:
-                    _format_journal_line(
-                        line,
-                        no_log_prefix=no_log_prefix,
-                        timestamps=timestamps,
-                        console=console,
-                    )
-        except KeyboardInterrupt:
-            pass
-        finally:
-            proc.terminate()
-            proc.wait()
-    else:
-        result = subprocess.run(args, capture_output=True, text=True)
-        for line in result.stdout.splitlines():
-            _format_journal_line(
-                line,
-                no_log_prefix=no_log_prefix,
-                timestamps=timestamps,
-                console=console,
-            )
-
-
 def compose_logs(
     *,
     compose_file: str | None = None,
@@ -213,7 +118,7 @@ def compose_logs(
         # Containers may not exist (e.g. failed to start).  Fall back
         # to journalctl so the user can still see systemd / podman
         # output for the service.
-        journal_args = ["journalctl", "--user", "--no-pager"]
+        journal_args = ["journalctl", "--user", "--no-pager", "-e"]
         for container_name in containers:
             journal_args.extend(["-u", f"{container_name}.service"])
         if follow:
@@ -224,10 +129,4 @@ def compose_logs(
             journal_args.extend(["--lines", str(tail)])
         if until is not None:
             journal_args.extend(["--until", str(until)])
-        _run_journalctl_json(
-            journal_args,
-            follow=follow,
-            no_color=no_color,
-            no_log_prefix=no_log_prefix,
-            timestamps=timestamps,
-        )
+        run_cmd(journal_args)
