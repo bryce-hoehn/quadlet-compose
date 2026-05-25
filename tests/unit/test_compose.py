@@ -178,3 +178,34 @@ class TestParseCompose:
         compose_file.write_text("{{{{invalid yaml")
         with pytest.raises(Exception):
             parse_compose(compose_file)
+
+    def test_integer_user_coerced_to_string(self, tmp_path):
+        """Integer UIDs (parsed by YAML) should be coerced to strings before validation."""
+        compose_file = tmp_path / "compose.yaml"
+        compose_file.write_text(
+            "services:\n" "  web:\n" "    image: nginx:latest\n" "    user: 1000\n"
+        )
+        data = parse_compose(compose_file)
+        assert data["services"]["web"]["user"] == "1000"
+        assert isinstance(data["services"]["web"]["user"], str)
+
+    def test_string_user_unchanged(self, tmp_path):
+        """String user values should pass through unchanged."""
+        compose_file = tmp_path / "compose.yaml"
+        compose_file.write_text(
+            "services:\n" "  web:\n" "    image: nginx:latest\n" "    user: appuser\n"
+        )
+        data = parse_compose(compose_file)
+        assert data["services"]["web"]["user"] == "appuser"
+
+    def test_integer_user_with_group(self, tmp_path):
+        """Integer UID:GID pairs should be coerced to string."""
+        compose_file = tmp_path / "compose.yaml"
+        compose_file.write_text(
+            "services:\n"
+            "  web:\n"
+            "    image: nginx:latest\n"
+            '    user: "1000:1000"\n'
+        )
+        data = parse_compose(compose_file)
+        assert data["services"]["web"]["user"] == "1000:1000"

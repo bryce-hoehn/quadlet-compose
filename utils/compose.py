@@ -41,6 +41,19 @@ def resolve_compose_path(compose_file: str | None) -> Path:
     raise FileNotFoundError("No compose file found in current directory.")
 
 
+def _coerce_compose_types(data: dict) -> None:
+    """Coerce compose fields that YAML parses as the wrong type.
+
+    The compose-spec declares ``user`` as ``string``, but YAML loaders
+    parse unquoted numeric UIDs (e.g. ``user: 1000``) as ``int``.
+    Docker/Podman Compose accept both forms, so we coerce ``int`` → ``str``
+    before Pydantic validation.
+    """
+    for svc in (data.get("services") or {}).values():
+        if isinstance(svc, dict) and isinstance(svc.get("user"), int):
+            svc["user"] = str(svc["user"])
+
+
 def parse_compose(
     compose_path: Path,
     *,
@@ -76,6 +89,8 @@ def parse_compose(
 
     if data is None:
         raise ComposeError(f"Compose file is empty: {compose_path}")
+
+    _coerce_compose_types(data)
 
     # Validate against compose-spec Pydantic models
     ComposeSpecification.model_validate(data)
