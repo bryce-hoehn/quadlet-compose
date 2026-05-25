@@ -153,18 +153,20 @@ curl -o compose-spec.json https://raw.githubusercontent.com/compose-spec/compose
 datamodel-codegen
 ```
 
-This is automated via the `regenerate-models.yml` GitHub Actions workflow.
+This is automated via the `regenerate-models.yml` Forgejo Actions workflow.
 
 ## CI Notes
 
-- GitHub Actions workflows use `actions/checkout@v6`
+- Forgejo Actions workflows use `actions/checkout@v4`
 - The `release` job needs `prepare` in its `needs` list to access version outputs
 - The Quadlet systemd generator must be symlinked from the Nix store to `~/.config/systemd/user-generators/` **after** `nix develop` has populated the store
 - Use `nix path-info nixpkgs#podman` to resolve the generator path instead of searching `/nix/store`
+- Workflows that create PRs, releases, or push to wiki use the Forgejo API with `secrets.FORGEJO_TOKEN`
+- Self-hosted runners must be registered with labels matching the `runs-on` fields in workflows
 
 ## Maintenance
 
 - **Update this file** when adding new commands, field mappings, or changing architecture
-- **Update `docs/`** when changing user-facing behavior — these sync to the GitHub Wiki via CI
+- **Update `docs/`** when changing user-facing behavior — these sync to the Codeberg Wiki via CI
 - **Update `flake.nix`** version when bumping `pyproject.toml` version — they must stay in sync
 - **Update `requirements.txt`** when adding or removing Python dependencies

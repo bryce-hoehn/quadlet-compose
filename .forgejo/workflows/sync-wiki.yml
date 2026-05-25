@@ -4,18 +4,22 @@ on:
   push:
     branches: [main]
     paths: [docs/**]
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Clone wiki
-        run: git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git wiki
+        env:
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+        run: git clone "${{ github.server_url }}/${{ github.repository }}.wiki.git" wiki
 
       - name: Sync docs to wiki
+        env:
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
         run: |
           # Remove existing wiki content (keep .git)
           find wiki -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
@@ -25,8 +29,8 @@ jobs:
 
           # Commit and push
           cd wiki
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "forgejo[bot]"
+          git config user.email "forgejo[bot]@users.noreply.forgejo.org"
           git add -A
           git commit -m "Sync docs from ${{ github.sha }}"
           git push
