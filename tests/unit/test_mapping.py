@@ -485,6 +485,15 @@ class TestQuadletBundle:
         # Quadlet: myapp-web.build → myapp-web-build.service
         assert "myapp-web-build.service" in names
 
+    def test_service_names_with_build_slash_in_tag(self) -> None:
+        """ImageTag with '/' (e.g. 'localhost/myapp-web') must produce
+        a valid service name without directory separators."""
+        bundle = QuadletBundle(
+            builds=[BuildUnit(ImageTag="localhost/myapp-web")],
+        )
+        names = bundle.service_names()
+        assert "localhost_myapp-web-build.service" in names
+
     def test_to_quadlet_files_empty(self) -> None:
         bundle = QuadletBundle()
         assert bundle.to_quadlet_files() == {}
@@ -527,6 +536,18 @@ class TestQuadletBundle:
         files = bundle.to_quadlet_files()
         assert "myapp-web.build" in files
         assert "[Build]" in files["myapp-web.build"]
+
+    def test_to_quadlet_files_with_build_sanitises_slash(self) -> None:
+        """ImageTag may contain '/' (e.g. 'localhost/myapp-web') — the
+        filename must replace it to avoid creating subdirectories."""
+        bundle = QuadletBundle(
+            builds=[BuildUnit(ImageTag="localhost/myapp-web")],
+        )
+        files = bundle.to_quadlet_files()
+        # '/' replaced with '_' in filename
+        assert "localhost_myapp-web.build" in files
+        # ImageTag value inside the file is unchanged
+        assert "ImageTag=localhost/myapp-web" in files["localhost_myapp-web.build"]
 
     def test_tag_injects_project_label(self) -> None:
         bundle = QuadletBundle(
@@ -1116,15 +1137,15 @@ class TestNamedVolumeReferencing:
     def test_named_volume_references_volume_file(self) -> None:
         """A named volume in a service should reference the .volume unit file."""
         compose = {
-            'name': 'myapp',
-            'services': {
-                'db': {
-                    'image': 'postgres:15',
-                    'volumes': ['dbdata:/var/lib/postgresql/data'],
+            "name": "myapp",
+            "services": {
+                "db": {
+                    "image": "postgres:15",
+                    "volumes": ["dbdata:/var/lib/postgresql/data"],
                 },
             },
-            'volumes': {
-                'dbdata': {},
+            "volumes": {
+                "dbdata": {},
             },
         }
         bundle = map_compose(compose)
@@ -1133,35 +1154,35 @@ class TestNamedVolumeReferencing:
         # The container should reference the .volume file, not the raw name
         assert container.Volume is not None
         assert any(
-            v.startswith('myapp-dbdata.volume:') for v in container.Volume
+            v.startswith("myapp-dbdata.volume:") for v in container.Volume
         ), f"Expected .volume reference, got: {container.Volume}"
 
     def test_named_volume_unit_created(self) -> None:
         """A .volume unit file should be created for declared volumes."""
         compose = {
-            'name': 'myapp',
-            'services': {
-                'db': {
-                    'image': 'postgres:15',
-                    'volumes': ['dbdata:/var/lib/postgresql/data'],
+            "name": "myapp",
+            "services": {
+                "db": {
+                    "image": "postgres:15",
+                    "volumes": ["dbdata:/var/lib/postgresql/data"],
                 },
             },
-            'volumes': {
-                'dbdata': {},
+            "volumes": {
+                "dbdata": {},
             },
         }
         bundle = map_compose(compose)
         assert len(bundle.volumes) == 1
-        assert bundle.volumes[0].VolumeName == 'myapp-dbdata'
+        assert bundle.volumes[0].VolumeName == "myapp-dbdata"
 
     def test_bind_mount_not_rewritten(self) -> None:
         """Bind mounts should NOT be rewritten to .volume references."""
         compose = {
-            'name': 'myapp',
-            'services': {
-                'web': {
-                    'image': 'nginx:latest',
-                    'volumes': ['./html:/usr/share/nginx/html:ro'],
+            "name": "myapp",
+            "services": {
+                "web": {
+                    "image": "nginx:latest",
+                    "volumes": ["./html:/usr/share/nginx/html:ro"],
                 },
             },
         }
@@ -1171,21 +1192,21 @@ class TestNamedVolumeReferencing:
         assert container.Volume is not None
         # Bind mount should keep its original source (resolved to absolute)
         assert any(
-            '/html:/usr/share/nginx/html:ro' in v for v in container.Volume
+            "/html:/usr/share/nginx/html:ro" in v for v in container.Volume
         ), f"Bind mount should not be rewritten, got: {container.Volume}"
 
     def test_external_volume_not_rewritten(self) -> None:
         """External volumes should NOT create .volume files or rewrite references."""
         compose = {
-            'name': 'myapp',
-            'services': {
-                'db': {
-                    'image': 'postgres:15',
-                    'volumes': ['ext_data:/var/lib/postgresql/data'],
+            "name": "myapp",
+            "services": {
+                "db": {
+                    "image": "postgres:15",
+                    "volumes": ["ext_data:/var/lib/postgresql/data"],
                 },
             },
-            'volumes': {
-                'ext_data': {'external': True},
+            "volumes": {
+                "ext_data": {"external": True},
             },
         }
         bundle = map_compose(compose)
@@ -1197,17 +1218,17 @@ class TestNamedVolumeReferencing:
         # Container should keep the raw volume name (not rewritten)
         assert container.Volume is not None
         assert any(
-            v.startswith('ext_data:') for v in container.Volume
+            v.startswith("ext_data:") for v in container.Volume
         ), f"External volume should not be rewritten, got: {container.Volume}"
 
     def test_undeclared_volume_not_rewritten(self) -> None:
         """A volume used in a service but not in top-level volumes: should not be rewritten."""
         compose = {
-            'name': 'myapp',
-            'services': {
-                'db': {
-                    'image': 'postgres:15',
-                    'volumes': ['auto_data:/var/lib/postgresql/data'],
+            "name": "myapp",
+            "services": {
+                "db": {
+                    "image": "postgres:15",
+                    "volumes": ["auto_data:/var/lib/postgresql/data"],
                 },
             },
         }
@@ -1220,28 +1241,30 @@ class TestNamedVolumeReferencing:
         # Container keeps the raw name (Podman will auto-create)
         assert container.Volume is not None
         assert any(
-            v.startswith('auto_data:') for v in container.Volume
+            v.startswith("auto_data:") for v in container.Volume
         ), f"Undeclared volume should not be rewritten, got: {container.Volume}"
 
     def test_volume_reference_in_quadlet_files(self) -> None:
         """The generated .container file should contain the .volume reference."""
         compose = {
-            'name': 'myapp',
-            'services': {
-                'db': {
-                    'image': 'postgres:15',
-                    'volumes': ['dbdata:/var/lib/postgresql/data'],
+            "name": "myapp",
+            "services": {
+                "db": {
+                    "image": "postgres:15",
+                    "volumes": ["dbdata:/var/lib/postgresql/data"],
                 },
             },
-            'volumes': {
-                'dbdata': {},
+            "volumes": {
+                "dbdata": {},
             },
         }
         bundle = map_compose(compose)
         files = bundle.to_quadlet_files()
 
-        container_content = files['myapp-db.container']
-        assert 'Volume=myapp-dbdata.volume:/var/lib/postgresql/data' in container_content
+        container_content = files["myapp-db.container"]
+        assert (
+            "Volume=myapp-dbdata.volume:/var/lib/postgresql/data" in container_content
+        )
 
         # The .volume file should also exist
-        assert 'myapp-dbdata.volume' in files
+        assert "myapp-dbdata.volume" in files

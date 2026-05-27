@@ -144,8 +144,10 @@ def compose_build(
     # Reload systemd so it discovers the newly generated units
     run_cmd(["systemctl", "--user", "daemon-reload"])
 
-    # Start build units
-    build_services = [f'{unit.ImageTag or "build"}.service' for unit in bundle.builds]
+    # Start build units — derive service names from the quadlet
+    # filenames (Quadlet appends "-build" to the stem for .build files).
+    build_stems = [k.rsplit(".", 1)[0] for k in quadlet_files if k.endswith(".build")]
+    build_services = [f"{stem}-build.service" for stem in build_stems]
     if quiet:
         for svc in build_services:
             run_cmd(["systemctl", "--user", "start", svc])

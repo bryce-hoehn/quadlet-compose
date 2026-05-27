@@ -360,7 +360,11 @@ class QuadletBundle:
             files[f"{name}.volume"] = _render_with_hash(unit)
         for unit in self.builds:
             tag = unit.ImageTag or "build"
-            files[f"{tag}.build"] = _render_with_hash(unit)
+            # Sanitise the tag for use as a filename: '/' is valid in
+            # container image references (e.g. "localhost/myapp") but
+            # would be interpreted as a directory separator on disk.
+            safe_tag = tag.replace("/", "_")
+            files[f"{safe_tag}.build"] = _render_with_hash(unit)
         return files
 
 

@@ -129,4 +129,4 @@ def compose_logs(
             journal_args.extend(["--lines", str(tail)])
         if until is not None:
             journal_args.extend(["--until", str(until)])
-        run_cmd(journal_args)
+        run_cmd(journal_args.extend([" | ", "less"]))
